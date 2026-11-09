@@ -234,3 +234,114 @@
   display: block;
 }
 
+/* Unified 1-Button Direct UPI CTA */
+.unified-upi-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #1e6454 0%, #174e41 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(30, 100, 84, 0.35);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.unified-upi-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(30, 100, 84, 0.45);
+  background: linear-gradient(135deg, #237865 0%, #1b5b4c 100%);
+}
+.unified-upi-btn:active {
+  transform: scale(0.98);
+}
+.upi-glow-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+.upi-btn-content {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  flex: 1;
+}
+.upi-main-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
+.upi-sub-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d9ef8a;
+  margin-top: 2px;
+  opacity: 0.95;
+}
+.upi-badge-tag {
+  background: #d9ef8a;
+  color: #183f3a;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Status Cards & Verifier Loader */
+.upi-status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #eef8f3;
+  border: 1.5px solid #a3dfb7;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  text-align: left;
+  animation: fadeIn 0.3s ease;
+}
+.upi-pulse-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #25a25a;
+  box-shadow: 0 0 0 rgba(37, 162, 90, 0.4);
+  animation: pulseGlow 1.4s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 162, 90, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(37, 162, 90, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 162, 90, 0); }
+}
+.upi-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+

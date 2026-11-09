@@ -39,12 +39,8 @@ async function runLivePaywallVerification() {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
 
-  page.on('console', msg => {
-    const text = msg.text();
-    if (text.includes('Entitlement') || text.includes('Authenticated') || text.includes('Activated')) {
-      console.log('  [Browser]', text);
-    }
-  });
+  page.on('console', msg => console.log('  [Browser]', msg.text()));
+  page.on('pageerror', err => console.log('  [Browser PageError]', err.message));
 
   // ---------------------------------------------------------
   // PHASE 1: Guest Free Units & Paywall Lock on Unit 3
@@ -102,19 +98,17 @@ async function runLivePaywallVerification() {
   console.log('  Paywall Price Banner:', priceText);
   if (!priceText.includes('₹१')) throw new Error('Price must show ₹1');
 
-  const payBtnText = await page.$eval('#payGpayBtn', el => el.innerText);
-  console.log('  Payment CTA Button:', payBtnText);
-  if (!payBtnText.includes('GPay') && !payBtnText.includes('Google Pay')) {
-    throw new Error('Payment CTA must reference GPay');
+  const unifiedBtnText = await page.$eval('#payUnifiedUpiBtn', el => el.innerText);
+  console.log('  Unified UPI Pay Button:', unifiedBtnText);
+  if (!unifiedBtnText.includes('कोणत्याही UPI') || !unifiedBtnText.includes('₹१')) {
+    throw new Error('Unified UPI button must display single unified CTA');
   }
-  console.log('✅ [Check 3] Paywall modal displays ₹1 pricing and Direct 1-Tap UPI buttons');
+  console.log('✅ [Check 3] Paywall modal displays ₹1 pricing and Unified Direct 1-Tap UPI CTA');
 
   // ---------------------------------------------------------
-  // PHASE 4: Activation via Payment ID & 1-Year Entitlement
+  // PHASE 4: Instant 1-Click Activation & 1-Year Entitlement
   // ---------------------------------------------------------
-  console.log('\n--- PHASE 4: Activation via Razorpay Payment ID ---');
-  await page.type('#verifyPaymentIdInput', TEST_PAY_ID);
-  await page.type('#payStudentPhone', '9876543210');
+  console.log('\n--- PHASE 4: Instant 1-Click Activation & 1-Year Entitlement ---');
   await page.click('#activateAccessBtn');
 
   // Wait for membership badge
@@ -131,7 +125,15 @@ async function runLivePaywallVerification() {
   console.log('✅ [Check 5] ALL 21 units successfully unlocked on the journey map!');
 
   // Open Unit 3 (Previously locked)
-  await page.click('.unit:nth-child(4) .unit-btn');
+  await page.waitForFunction(() => {
+    const modal = document.querySelector('#paywallModal');
+    return !modal || !modal.classList.contains('show');
+  });
+  await new Promise(r => setTimeout(r, 600));
+  await page.evaluate(() => {
+    const units = document.querySelectorAll('.unit');
+    if (units[3]) units[3].querySelector('.unit-btn').click();
+  });
   await page.waitForSelector('#lessonView', { visible: true });
   const lessonTitle = await page.$eval('#lessonTitle', el => el.innerText);
   console.log('  Unit 3 Lesson Title:', lessonTitle);

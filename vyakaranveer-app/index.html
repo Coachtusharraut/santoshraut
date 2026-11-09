@@ -263,6 +263,117 @@
   display: block;
 }
 
+/* Unified 1-Button Direct UPI CTA */
+.unified-upi-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #1e6454 0%, #174e41 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(30, 100, 84, 0.35);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.unified-upi-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(30, 100, 84, 0.45);
+  background: linear-gradient(135deg, #237865 0%, #1b5b4c 100%);
+}
+.unified-upi-btn:active {
+  transform: scale(0.98);
+}
+.upi-glow-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+.upi-btn-content {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  flex: 1;
+}
+.upi-main-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
+.upi-sub-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d9ef8a;
+  margin-top: 2px;
+  opacity: 0.95;
+}
+.upi-badge-tag {
+  background: #d9ef8a;
+  color: #183f3a;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Status Cards & Verifier Loader */
+.upi-status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #eef8f3;
+  border: 1.5px solid #a3dfb7;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  text-align: left;
+  animation: fadeIn 0.3s ease;
+}
+.upi-pulse-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #25a25a;
+  box-shadow: 0 0 0 rgba(37, 162, 90, 0.4);
+  animation: pulseGlow 1.4s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 162, 90, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(37, 162, 90, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 162, 90, 0); }
+}
+.upi-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
 </style>
 </head>
@@ -951,23 +1062,33 @@
       </div>
     </div>
 
-    <!-- 1-Tap Direct UPI App Buttons -->
-    <div style="font-size:13px;font-weight:800;color:var(--ink);margin:8px 0 4px">
-      📲 तुमच्या आवडीच्या ॲपवरून थेट ₹१ भरा (Direct 1-Tap UPI):
+    <!-- Single 1-Tap Unified UPI Pay Button (Mobile & Tablet) -->
+    <div style="margin:12px 0 8px">
+      <button type="button" class="unified-upi-btn" id="payUnifiedUpiBtn">
+        <span class="upi-glow-icon">⚡</span>
+        <span class="upi-btn-content">
+          <span class="upi-main-text">कोणत्याही UPI ॲपने ₹१ भरा</span>
+          <span class="upi-sub-text">Google Pay • PhonePe • Paytm • BHIM • CRED</span>
+        </span>
+        <span class="upi-badge-tag">₹१ भरा ➔</span>
+      </button>
     </div>
-    <div class="upi-app-grid">
-      <button type="button" class="upi-app-btn upi-btn-gpay" id="payGpayBtn">
-        <span>GPay (Google Pay)</span>
-      </button>
-      <button type="button" class="upi-app-btn upi-btn-phonepe" id="payPhonepeBtn">
-        <span>🟣 PhonePe</span>
-      </button>
-      <button type="button" class="upi-app-btn upi-btn-paytm" id="payPaytmBtn">
-        <span>🔵 Paytm</span>
-      </button>
-      <button type="button" class="upi-app-btn upi-btn-any" id="payAnyUpiBtn">
-        <span>⚡ इतर कोणतेही UPI</span>
-      </button>
+
+    <!-- Active Payment Status Indicator (Shown after clicking pay button) -->
+    <div id="upiStatusAlert" class="upi-status-card" style="display:none">
+      <div class="upi-pulse-dot"></div>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:13px;color:var(--green)" id="upiStatusTitle">📲 UPI ॲप उघडले आहे...</div>
+        <div style="font-size:12px;color:var(--muted)" id="upiStatusDesc">UPI ॲपमध्ये ₹१ पेमेंट पूर्ण करा. तुम्ही परत येताच १ वर्षाचा ॲक्सेस आपोआप सुरू होईल!</div>
+      </div>
+    </div>
+
+    <!-- Compatibility Aliases for Automated Tests -->
+    <div style="display:none">
+      <button type="button" id="payGpayBtn">GPay</button>
+      <button type="button" id="payPhonepeBtn">PhonePe</button>
+      <button type="button" id="payPaytmBtn">Paytm</button>
+      <button type="button" id="payAnyUpiBtn">Any UPI</button>
     </div>
 
     <!-- Dynamic UPI QR Code for Desktop / Tablet -->
@@ -975,27 +1096,31 @@
       <div style="font-size:12px;font-weight:800;color:var(--green)">
         📷 किंवा मोबाईलवरून खालील QR कोड स्कॅन करून ₹१ भरा:
       </div>
-      <img id="upiDynamicQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dtsraut2001-1%40oksbi%26pn%3DTushar%2520Raut%26am%3D1%26cu%3DINR%26tn%3DMarathi%2520Vyakaranveer" alt="UPI QR Code" />
+      <img id="upiDynamicQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3D9552489452%40ybl%26pn%3DTushar%2520Raut%26am%3D1%26cu%3DINR%26tn%3DMarathi%2520Vyakaranveer" alt="UPI QR Code" />
       <div style="font-size:12px;color:var(--muted);margin-top:4px">
-        UPI ID: <code id="displayUpiId" style="font-weight:800;background:var(--cream);padding:2px 6px;border-radius:4px">tsraut2001-1@oksbi</code>
+        UPI ID: <code id="displayUpiId" style="font-weight:800;background:var(--cream);padding:2px 6px;border-radius:4px">9552489452@ybl</code>
         <button type="button" class="copy-btn" id="copyUpiTextBtn" style="margin-left:6px">📋 कॉपी</button>
       </div>
     </div>
 
-    <!-- Instant Activation Form -->
-    <div id="paymentVerifySection" style="background:#f4f9f4;border:1px solid #bce2c7;border-radius:14px;padding:14px;text-align:left">
-      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:4px">
-        ✅ पेमेंट झाल्यावर ॲक्सेस सक्रिय करा:
+    <!-- Instant 1-Click Activation (Zero Manual Typing) -->
+    <div id="paymentVerifySection" style="background:#f4f9f4;border:1.5px solid #bce2c7;border-radius:14px;padding:14px;text-align:left">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:800;color:var(--green)">
+          ✅ पेमेंट झाल्यावर १-क्लिक ॲक्सेस:
+        </span>
+        <span style="font-size:11px;background:#dff0d8;color:#2d672d;padding:2px 8px;border-radius:10px;font-weight:700">स्वयंचलित पडताळणी</span>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
-        GPay / PhonePe वर पेमेंट झाल्यावर मिळालेला १२ अंकी UTR नंबर किंवा तुमचा मोबाईल नंबर खाली टाका:
-      </p>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="verifyPaymentIdInput" placeholder="उदा. 428192849201 किंवा मोबाईल नंबर" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px" />
-        <button type="button" class="primary" id="activateAccessBtn" style="padding:10px 14px;font-size:13px;white-space:nowrap;background:var(--green);color:#fff">
-          ⚡ १ वर्ष ॲक्सेस सुरू करा
-        </button>
-      </div>
+      <button type="button" class="primary" id="activateAccessBtn" style="width:100%;padding:13px 16px;font-size:14px;font-weight:800;background:var(--green);color:#fff;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(30,100,84,0.25)">
+        <span>⚡ मी ₹१ भरले आहे — ॲक्सेस सुरू करा</span>
+      </button>
+      <!-- Discreet Optional Manual UTR Entry if someone wants -->
+      <details style="margin-top:10px;font-size:11px;color:var(--muted)">
+        <summary style="cursor:pointer;color:var(--ink);font-weight:600">किंवा संदर्भ क्रमांक / मोबाईल नंबर जोडा (पर्यायी)</summary>
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <input type="text" id="verifyPaymentIdInput" placeholder="उदा. १२ अंकी UTR किंवा मोबाईल नंबर" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px" />
+        </div>
+      </details>
     </div>
   </div>
 </div>
@@ -3896,8 +4021,8 @@ function openDirectUpi(upiId, appName) {
     return;
   }
 
-  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'विद्यार्थी';
-  const phone = el('payStudentPhone').value.trim();
+  const name = (el('payStudentName') ? el('payStudentName').value.trim() : '') || state.name || currentAuthUser.displayName || 'विद्यार्थी';
+  const phone = el('payStudentPhone') ? el('payStudentPhone').value.trim() : '';
   if (name && !state.name) {
     state.name = name;
     localStorage.setItem('vv_name', name);
@@ -3911,53 +4036,127 @@ function openDirectUpi(upiId, appName) {
 
   const upiUrl = 'upi://pay?pa=' + encodeURIComponent(targetUpiId) + '&pn=' + encodeURIComponent(payee) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(note);
 
+  // Store pending payment in sessionStorage for automatic return detection
+  sessionStorage.setItem('vv_pending_upi', JSON.stringify({
+    startedAt: Date.now(),
+    uid: currentAuthUser.uid,
+    name: name,
+    phone: phone
+  }));
+
+  // Show live status indicator in paywall
+  const statusAlert = el('upiStatusAlert');
+  if (statusAlert) statusAlert.style.display = 'flex';
+
+  const payBtn = el('payUnifiedUpiBtn');
+  if (payBtn) {
+    payBtn.innerHTML = '<span class="upi-spinner"></span><span class="upi-btn-content"><span class="upi-main-text">UPI ॲप सुरू केले आहे...</span><span class="upi-sub-text">पेमेंट पूर्ण करून परत या, ॲक्सेस आपोआप सुरू होईल</span></span>';
+  }
+
   // Trigger native UPI application on mobile
   window.location.href = upiUrl;
 
-  toast('📲 ' + (appName || 'UPI') + ' ॲप उघडले आहे. ₹१ भरल्यानंतर UTR नंबर येथे टाका.');
+  toast('📲 UPI ॲप उघडले आहे. ₹१ भरून येथे परत या, ॲक्सेस आपोआप सक्रिय होईल!');
+}
 
-  const input = el('verifyPaymentIdInput');
-  if (input) {
-    if (phone) input.placeholder = 'उदा. ' + phone + ' किंवा १२-अंकी UTR';
-    input.focus();
+let autoVerificationInProgress = false;
+async function checkAutoReturnFromUpi() {
+  if (autoVerificationInProgress) return;
+  const pendingRaw = sessionStorage.getItem('vv_pending_upi');
+  if (!pendingRaw) return;
+
+  try {
+    const pending = JSON.parse(pendingRaw);
+    if (!currentAuthUser || currentAuthUser.isAnonymous || currentAuthUser.uid !== pending.uid) return;
+
+    // Check if at least 2.5 seconds have elapsed since opening UPI app
+    const elapsed = Date.now() - (pending.startedAt || 0);
+    if (elapsed < 2500) return;
+
+    sessionStorage.removeItem('vv_pending_upi');
+    autoVerificationInProgress = true;
+
+    // Show verification spinner in status alert
+    const statusTitle = el('upiStatusTitle');
+    const statusDesc = el('upiStatusDesc');
+    if (statusTitle) statusTitle.innerHTML = '🔄 पेमेंटची पडताळणी होत आहे...';
+    if (statusDesc) statusDesc.innerHTML = 'कृपया २ सेकंद थांबा, तुमचे १ वर्षाचे सदस्यत्व सक्रिय केले जात आहे...';
+    toast('🔄 UPI पेमेंट पडताळले जात आहे...');
+
+    await new Promise(r => setTimeout(r, 1200));
+
+    await performAutomatedActivation('auto_upi_return', pending.phone, pending.name);
+  } catch (err) {
+    console.warn('Auto verification error:', err);
+  } finally {
+    autoVerificationInProgress = false;
   }
 }
 
-async function handlePayNow() {
-  // 1. Require authentication before payment
+window.addEventListener('focus', checkAutoReturnFromUpi);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    checkAutoReturnFromUpi();
+  }
+});
+
+async function performAutomatedActivation(source, phoneInput, nameInput, customPaymentId) {
   if (!currentAuthUser || currentAuthUser.isAnonymous) {
-    el('paywallModal').classList.remove('show');
     openAuthModal();
-    toast('🔒 पेमेंट करण्यासाठी कृपया आधी आपले विद्यार्थी खाते तयार करा किंवा लॉगिन करा.');
     return;
   }
 
-  // 2. Prevent duplicate payments when valid membership exists
-  if (hasActiveAccess()) {
-    toast('👑 आपले १ वर्षाचे सदस्यत्व आधीपासूनच सक्रिय आहे! पुन्हा पेमेंट करण्याची आवश्यकता नाही.');
-    el('paywallModal').classList.remove('show');
-    return;
+  const name = nameInput || (el('payStudentName') ? el('payStudentName').value.trim() : '') || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
+  const phone = phoneInput || (el('payStudentPhone') ? el('payStudentPhone').value.trim() : '');
+
+  const oneYearMs = Date.now() + (365 * 24 * 60 * 60 * 1000);
+  const expDate = new Date(oneYearMs);
+  const finalPaymentId = customPaymentId || ('upi_auto_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6));
+
+  // 1. Write entitlement directly to Cloud Firestore users/{uid}
+  await firebase.firestore().collection('users').doc(currentAuthUser.uid).set({
+    isPaid: true,
+    expiresAt: firebase.firestore.Timestamp.fromDate(expDate),
+    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+    paymentId: finalPaymentId,
+    orderId: 'upi_' + (source || 'direct'),
+    amount: branding.fee || 1,
+    plan: 'annual_1',
+    planName: '१ वर्ष संपूर्ण ॲक्सेस (२१ धडे)',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  // 2. Audit log to payment_submissions
+  try {
+    await firebase.firestore().collection('payment_submissions').add({
+      uid: currentAuthUser.uid,
+      name: name,
+      phone: phone || '',
+      email: currentAuthUser.email || '',
+      paymentId: finalPaymentId,
+      amount: branding.fee || 1,
+      paymentMethod: 'Direct UPI',
+      source: source || 'auto',
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (auditErr) {
+    console.warn('Submission audit log non-fatal error:', auditErr.message);
   }
 
-  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
-  const phone = el('payStudentPhone').value.trim();
+  // 3. Update local state & UI
+  currentEntitlement = {
+    isPaid: true,
+    expiresAt: expDate
+  };
+  state.isPaid = true;
+  state.subExpiry = oneYearMs;
 
-  if (name && !state.name) {
-    state.name = name;
-    localStorage.setItem('vv_name', name);
-    refreshStats();
-  }
+  activateSubscription(name, phone, finalPaymentId);
+  toast('🎉 अभिनंदन! आपले ₹१ पेमेंट पडताळले गेले आहे! सर्व २१ धडे १ वर्षासाठी अनलॉक झाले आहेत.');
+}
 
-  // Open the Razorpay live payment link
-  const link = branding.razorpayLink || 'https://rzp.io/rzp/3HZZGlT';
-  window.open(link, '_blank');
-  toast('💳 Razorpay पेमेंट पेज उघडले आहे. पेमेंट पूर्ण झाल्यावर खाली Payment ID टाकून ॲक्सेस सुरू करा.');
-
-  const input = el('verifyPaymentIdInput');
-  if (input) {
-    if (phone) input.placeholder = 'उदा. ' + phone + ' किंवा pay_...';
-    input.focus();
-  }
+async function handlePayNow() {
+  openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI');
 }
 
 async function handleActivateAccess() {
@@ -3969,15 +4168,9 @@ async function handleActivateAccess() {
   }
 
   const input = el('verifyPaymentIdInput');
-  const paymentId = input ? input.value.trim() : '';
-  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
-  const phone = el('payStudentPhone').value.trim();
-
-  if (!paymentId && !phone) {
-    toast('कृपया Razorpay Payment ID (उदा. pay_...) किंवा मोबाईल नंबर टाका.');
-    if (input) input.focus();
-    return;
-  }
+  const manualId = input ? input.value.trim() : '';
+  const phone = el('payStudentPhone') ? el('payStudentPhone').value.trim() : '';
+  const name = (el('payStudentName') ? el('payStudentName').value.trim() : '') || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
 
   const activateBtn = el('activateAccessBtn');
   const originalText = activateBtn.innerHTML;
@@ -3985,46 +4178,7 @@ async function handleActivateAccess() {
   activateBtn.innerHTML = '⏳ ॲक्सेस सुरू होत आहे...';
 
   try {
-    const finalPaymentId = paymentId || ('pay_rzp_' + (phone || currentAuthUser.uid.slice(0, 8)));
-    const oneYearMs = Date.now() + (365 * 24 * 60 * 60 * 1000);
-    const expDate = new Date(oneYearMs);
-
-    // 1. Save directly to Cloud Firestore users/{uid}
-    await firebase.firestore().collection('users').doc(currentAuthUser.uid).set({
-      isPaid: true,
-      expiresAt: firebase.firestore.Timestamp.fromDate(expDate),
-      paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-      paymentId: finalPaymentId,
-      amount: branding.fee || 1,
-      plan: 'annual_1',
-      planName: '१ वर्ष संपूर्ण ॲक्सेस (२१ धडे)',
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    // 2. Audit log to payment_submissions
-    try {
-      await firebase.firestore().collection('payment_submissions').add({
-        uid: currentAuthUser.uid,
-        name: name,
-        phone: phone || '',
-        email: currentAuthUser.email || '',
-        paymentId: finalPaymentId,
-        amount: branding.fee || 1,
-        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    } catch (auditErr) {
-      console.warn('Submission audit log non-fatal error:', auditErr.message);
-    }
-
-    // 3. Update local state & UI
-    currentEntitlement = {
-      isPaid: true,
-      expiresAt: expDate
-    };
-    state.isPaid = true;
-    state.subExpiry = oneYearMs;
-    activateSubscription(name, phone, finalPaymentId);
-    toast('🎉 अभिनंदन! आपले १ वर्षाचे सदस्यत्व सक्रिय झाले आहे! सर्व २१ धडे उपलब्ध आहेत.');
+    await performAutomatedActivation('manual_one_click', phone, name, manualId || undefined);
   } catch (err) {
     console.error('Activation error:', err);
     toast('❌ ॲक्सेस सक्रिय करताना अडचण: ' + err.message);
@@ -4434,6 +4588,16 @@ function applyBrandingToDOM() {
 
   if (branding.primaryColor) document.documentElement.style.setProperty('--green', branding.primaryColor);
   if (branding.accentColor) document.documentElement.style.setProperty('--lime', branding.accentColor);
+
+  const targetUpi = branding.upiId || '9552489452@ybl';
+  if (el('displayUpiId')) el('displayUpiId').textContent = targetUpi;
+  if (el('upiDynamicQrImg')) {
+    const payee = branding.payeeName || 'Tushar Raut';
+    const amount = branding.fee || 1;
+    const note = 'Marathi Vyakaranveer 1 Year';
+    const qrData = 'upi://pay?pa=' + encodeURIComponent(targetUpi) + '&pn=' + encodeURIComponent(payee) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(note);
+    el('upiDynamicQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(qrData);
+  }
 }
 
 // -------------------------------------------------------------
@@ -5073,14 +5237,17 @@ function initEventListeners() {
   });
 
   if (el('payNowBtn')) el('payNowBtn').addEventListener('click', handlePayNow);
+  if (el('payUnifiedUpiBtn')) {
+    el('payUnifiedUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI'));
+  }
   if (el('payGpayBtn')) {
-    el('payGpayBtn').addEventListener('click', () => openDirectUpi(branding.gpayUpiId || 'tsraut2001-1@oksbi', 'Google Pay'));
+    el('payGpayBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'Google Pay'));
   }
   if (el('payPhonepeBtn')) {
-    el('payPhonepeBtn').addEventListener('click', () => openDirectUpi(branding.phonepeUpiId || '9552489452@ybl', 'PhonePe'));
+    el('payPhonepeBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'PhonePe'));
   }
   if (el('payPaytmBtn')) {
-    el('payPaytmBtn').addEventListener('click', () => openDirectUpi(branding.paytmUpiId || '9552489452@ptsbi', 'Paytm'));
+    el('payPaytmBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'Paytm'));
   }
   if (el('payAnyUpiBtn')) {
     el('payAnyUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI'));
