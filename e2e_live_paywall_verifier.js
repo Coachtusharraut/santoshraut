@@ -102,12 +102,12 @@ async function runLivePaywallVerification() {
   console.log('  Paywall Price Banner:', priceText);
   if (!priceText.includes('₹१')) throw new Error('Price must show ₹1');
 
-  const payBtnText = await page.$eval('#payNowBtn', el => el.innerText);
+  const payBtnText = await page.$eval('#payGpayBtn', el => el.innerText);
   console.log('  Payment CTA Button:', payBtnText);
-  if (!payBtnText.includes('Razorpay') || !payBtnText.includes('₹१')) {
-    throw new Error('Payment CTA must reference Razorpay ₹1');
+  if (!payBtnText.includes('GPay') && !payBtnText.includes('Google Pay')) {
+    throw new Error('Payment CTA must reference GPay');
   }
-  console.log('✅ [Check 3] Paywall modal displays ₹1 pricing and Razorpay CTA');
+  console.log('✅ [Check 3] Paywall modal displays ₹1 pricing and Direct 1-Tap UPI buttons');
 
   // ---------------------------------------------------------
   // PHASE 4: Activation via Payment ID & 1-Year Entitlement

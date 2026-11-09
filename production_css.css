@@ -173,3 +173,64 @@
 .btn-link{padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
 .btn-link:hover{background:var(--cream)}
 
+/* Direct Instant UPI Buttons & QR */
+.upi-app-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+.upi-app-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.upi-app-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.upi-btn-gpay {
+  background: #ffffff;
+  color: #1a73e8;
+  border-color: #1a73e8;
+}
+.upi-btn-phonepe {
+  background: #5f259f;
+  color: #ffffff;
+  border-color: #5f259f;
+}
+.upi-btn-paytm {
+  background: #00baf2;
+  color: #ffffff;
+  border-color: #00baf2;
+}
+.upi-btn-any {
+  background: #1e6454;
+  color: #ffffff;
+  border-color: #1e6454;
+}
+.upi-qr-card {
+  background: #ffffff;
+  border: 2px dashed #c8edb8;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 14px 0;
+  text-align: center;
+}
+.upi-qr-card img {
+  width: 170px;
+  height: 170px;
+  border-radius: 12px;
+  margin: 8px auto;
+  display: block;
+}
+

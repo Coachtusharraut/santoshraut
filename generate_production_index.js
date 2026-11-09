@@ -693,9 +693,9 @@ ${combinedCss}
   </div>
 </div>
 
-<!-- MODAL: Student ₹1 Paywall Modal -->
+<!-- MODAL: Student ₹1 Paywall Modal with Direct GPay / PhonePe / Paytm UPI -->
 <div class="modal" id="paywallModal">
-  <div class="modal-card paywall-card">
+  <div class="modal-card paywall-card" style="max-width:480px">
     <button class="close-modal-btn" id="closePaywallBtn">&times;</button>
     <div class="paywall-header">
       <div class="trophy-badge">🏆</div>
@@ -704,16 +704,11 @@ ${combinedCss}
     </div>
     <div class="paywall-price-banner">
       <div class="price-val">फक्त ₹१ <span class="tax-tag">विशेष ऑफर (१ वर्ष ॲक्सेस)</span></div>
-      <div class="validity-val">⏱️ १ वर्ष (३६५ दिवस) संपूर्ण अमर्याद वैधता</div>
+      <div class="validity-val">⏱️ १ वर्ष (३६५ दिवस) सर्व २१ धडे अमर्याद वैधता</div>
     </div>
-    <div class="paywall-features">
-      <div class="feat-item"><span class="feat-check">✓</span> <div><strong>सर्व २१ व्याकरण मोहिमा:</strong> स्वर संधी, व्यंजन संधी, विसर्ग संधी, विभक्ती व कारकार्थ, समास, अलंकार आणि सर्व बोर्ड घटक.</div></div>
-      <div class="feat-item"><span class="feat-check">✓</span> <div><strong>११०+ संवादात्मक प्रश्न:</strong> प्रत्येक प्रश्नासोबत स्पष्टीकरण, संदर्भ आणि हिंट्स.</div></div>
-      <div class="feat-item"><span class="feat-check">✓</span> <div><strong>ज्ञानगड महाअंतिम परीक्षा:</strong> प्रावीण्य मिळवा व डिजिटल बॅज जिंका.</div></div>
-      <div class="feat-item"><span class="feat-check">✓</span> <div><strong>१ वर्ष अमर्याद सराव:</strong> मोबाईल किंवा लॅपटॉपवर कधीही सराव करा.</div></div>
-      <div class="feat-item"><span class="feat-check">✓</span> <div><strong>संतोष राऊत सरांचे मार्गदर्शन:</strong> महाराष्ट्रातील विद्यार्थ्यांसाठी खास डिझाइन.</div></div>
-    </div>
-    <div class="paywall-form">
+
+    <!-- Student details form -->
+    <div class="paywall-form" style="margin-bottom:12px">
       <div class="form-row">
         <label>विद्यार्थ्याचे नाव</label>
         <input type="text" id="payStudentName" placeholder="उदा. सई, अथर्व" />
@@ -723,25 +718,50 @@ ${combinedCss}
         <input type="tel" id="payStudentPhone" placeholder="उदा. 98XXXXXXXX" />
       </div>
     </div>
-    <div class="paywall-actions">
-      <button class="primary pay-cta-btn" id="payNowBtn" style="font-size:15px;padding:13px">
-        💳 Razorpay द्वारे ₹१ भरा (Pay ₹1) 🚀
+
+    <!-- 1-Tap Direct UPI App Buttons -->
+    <div style="font-size:13px;font-weight:800;color:var(--ink);margin:8px 0 4px">
+      📲 तुमच्या आवडीच्या ॲपवरून थेट ₹१ भरा (Direct 1-Tap UPI):
+    </div>
+    <div class="upi-app-grid">
+      <button type="button" class="upi-app-btn upi-btn-gpay" id="payGpayBtn">
+        <span>GPay (Google Pay)</span>
       </button>
-      <div class="pay-trust-note">🔒 सुरक्षित UPI (Google Pay, PhonePe, Paytm, Cards) • अधिकृत Razorpay पेमेंट</div>
+      <button type="button" class="upi-app-btn upi-btn-phonepe" id="payPhonepeBtn">
+        <span>🟣 PhonePe</span>
+      </button>
+      <button type="button" class="upi-app-btn upi-btn-paytm" id="payPaytmBtn">
+        <span>🔵 Paytm</span>
+      </button>
+      <button type="button" class="upi-app-btn upi-btn-any" id="payAnyUpiBtn">
+        <span>⚡ इतर कोणतेही UPI</span>
+      </button>
     </div>
 
-    <!-- Direct Activation Section -->
-    <div id="paymentVerifySection" style="margin-top:16px;background:#f9f8f4;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left">
-      <div style="font-size:13px;font-weight:800;color:var(--ink);margin-bottom:4px">
-        ✅ पेमेंट पूर्ण झाल्यावर ॲक्सेस सक्रिय करा:
+    <!-- Dynamic UPI QR Code for Desktop / Tablet -->
+    <div class="upi-qr-card">
+      <div style="font-size:12px;font-weight:800;color:var(--green)">
+        📷 किंवा मोबाईलवरून खालील QR कोड स्कॅन करून ₹१ भरा:
+      </div>
+      <img id="upiDynamicQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dtsraut2001-1%40oksbi%26pn%3DTushar%2520Raut%26am%3D1%26cu%3DINR%26tn%3DMarathi%2520Vyakaranveer" alt="UPI QR Code" />
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">
+        UPI ID: <code id="displayUpiId" style="font-weight:800;background:var(--cream);padding:2px 6px;border-radius:4px">tsraut2001-1@oksbi</code>
+        <button type="button" class="copy-btn" id="copyUpiTextBtn" style="margin-left:6px">📋 कॉपी</button>
+      </div>
+    </div>
+
+    <!-- Instant Activation Form -->
+    <div id="paymentVerifySection" style="background:#f4f9f4;border:1px solid #bce2c7;border-radius:14px;padding:14px;text-align:left">
+      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:4px">
+        ✅ पेमेंट झाल्यावर ॲक्सेस सक्रिय करा:
       </div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
-        Razorpay वर ₹१ भरल्यावर, मिळालेला Payment ID (उदा. <code>pay_...</code> किंवा मोबाईल नंबर) येथे टाकून ॲक्सेस सुरू करा:
+        GPay / PhonePe वर पेमेंट झाल्यावर मिळालेला १२ अंकी UTR नंबर किंवा तुमचा मोबाईल नंबर खाली टाका:
       </p>
       <div style="display:flex;gap:8px">
-        <input type="text" id="verifyPaymentIdInput" placeholder="उदा. pay_XXXXX किंवा मोबाईल नंबर" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px" />
+        <input type="text" id="verifyPaymentIdInput" placeholder="उदा. 428192849201 किंवा मोबाईल नंबर" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px" />
         <button type="button" class="primary" id="activateAccessBtn" style="padding:10px 14px;font-size:13px;white-space:nowrap;background:var(--green);color:#fff">
-          ⚡ ॲक्सेस सुरू करा
+          ⚡ १ वर्ष ॲक्सेस सुरू करा
         </button>
       </div>
     </div>
@@ -813,7 +833,11 @@ const DEFAULT_BRANDING = {
   freeLessonsCount: 3,
   razorpayKey: '',
   razorpayLink: 'https://rzp.io/rzp/3HZZGlT',
-  upiId: 'santoshraut@upi',
+  upiId: '9552489452@ybl',
+  gpayUpiId: 'tsraut2001-1@oksbi',
+  phonepeUpiId: '9552489452@ybl',
+  paytmUpiId: '9552489452@ptsbi',
+  payeeName: 'Tushar Raut',
   adminPin: '2121'
 };
 
@@ -1535,6 +1559,46 @@ function openPaywallModal(unitIdx) {
   }
   el('payStudentName').value = state.name || currentAuthUser.displayName || '';
   el('paywallModal').classList.add('show');
+}
+
+function openDirectUpi(upiId, appName) {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) {
+    el('paywallModal').classList.remove('show');
+    openAuthModal();
+    toast('🔒 पेमेंट करण्यापूर्वी कृपया आधी विद्यार्थी खाते तयार करा किंवा लॉगिन करा.');
+    return;
+  }
+  if (hasActiveAccess()) {
+    toast('👑 आपले १ वर्षाचे सदस्यत्व आधीपासूनच सक्रिय आहे!');
+    el('paywallModal').classList.remove('show');
+    return;
+  }
+
+  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'विद्यार्थी';
+  const phone = el('payStudentPhone').value.trim();
+  if (name && !state.name) {
+    state.name = name;
+    localStorage.setItem('vv_name', name);
+    refreshStats();
+  }
+
+  const targetUpiId = upiId || branding.upiId || '9552489452@ybl';
+  const payee = branding.payeeName || 'Tushar Raut';
+  const amount = branding.fee || 1;
+  const note = 'Marathi Vyakaranveer 1 Year';
+
+  const upiUrl = 'upi://pay?pa=' + encodeURIComponent(targetUpiId) + '&pn=' + encodeURIComponent(payee) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(note);
+
+  // Trigger native UPI application on mobile
+  window.location.href = upiUrl;
+
+  toast('📲 ' + (appName || 'UPI') + ' ॲप उघडले आहे. ₹१ भरल्यानंतर UTR नंबर येथे टाका.');
+
+  const input = el('verifyPaymentIdInput');
+  if (input) {
+    if (phone) input.placeholder = 'उदा. ' + phone + ' किंवा १२-अंकी UTR';
+    input.focus();
+  }
 }
 
 async function handlePayNow() {
@@ -2686,7 +2750,25 @@ function initEventListeners() {
     el('paywallModal').classList.remove('show');
   });
 
-  el('payNowBtn').addEventListener('click', handlePayNow);
+  if (el('payNowBtn')) el('payNowBtn').addEventListener('click', handlePayNow);
+  if (el('payGpayBtn')) {
+    el('payGpayBtn').addEventListener('click', () => openDirectUpi(branding.gpayUpiId || 'tsraut2001-1@oksbi', 'Google Pay'));
+  }
+  if (el('payPhonepeBtn')) {
+    el('payPhonepeBtn').addEventListener('click', () => openDirectUpi(branding.phonepeUpiId || '9552489452@ybl', 'PhonePe'));
+  }
+  if (el('payPaytmBtn')) {
+    el('payPaytmBtn').addEventListener('click', () => openDirectUpi(branding.paytmUpiId || '9552489452@ptsbi', 'Paytm'));
+  }
+  if (el('payAnyUpiBtn')) {
+    el('payAnyUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI'));
+  }
+  if (el('copyUpiTextBtn')) {
+    el('copyUpiTextBtn').addEventListener('click', () => {
+      const upi = el('displayUpiId') ? el('displayUpiId').textContent.trim() : 'tsraut2001-1@oksbi';
+      navigator.clipboard.writeText(upi).then(() => toast('UPI ID कॉपी झाला: ' + upi));
+    });
+  }
   if (el('activateAccessBtn')) {
     el('activateAccessBtn').addEventListener('click', handleActivateAccess);
   }
