@@ -1,0 +1,194 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // 1. Collection: users/{userId}
+    //    Document ID: Firebase Auth UID (request.auth.uid)
+    //    Description: Student profile and payment entitlement status.
+    //    Fields:
+    //      - name: string (optional/required, 1-50 chars) - Student's display name
+    //      - phone: string (optional, 0-20 chars) - Student's contact number
+    //      - email: string (optional, 0-100 chars) - Student's email
+    //      - createdAt: timestamp (optional on create, immutable on update)
+    //      - updatedAt: timestamp (optional on create/update)
+    //      Entitlement fields (strictly managed by Cloud Functions Admin SDK):
+    //      - isPaid: bool (subscription status, NEVER writable by client)
+    //      - expiresAt: timestamp (subscription expiry, NEVER writable by client)
+    //      - paidAt: timestamp (payment timestamp, NEVER writable by client)
+    //      - plan: string (e.g. 'annual_21', max 50 chars, NEVER writable by client)
+    //      - paymentId: string (Razorpay payment ID, max 100 chars, NEVER writable by client)
+    //      - orderId: string (Razorpay order ID, max 100 chars, NEVER writable by client)
+    //
+    // 2. Collection: orders/{orderId}
+    //    Document ID: Razorpay order ID or generated UUID
+    //    Description: Order records created and managed exclusively by backend Cloud Functions.
+    //    Fields:
+    //      - uid: string (Firebase Auth UID of student who placed the order)
+    //      - orderId: string (Razorpay order ID)
+    //      - amount: int / number (Order amount in paise, e.g. 2100)
+    //      - currency: string (e.g. 'INR')
+    //      - status: string (e.g. 'created', 'paid', 'attempted')
+    //      - createdAt: timestamp
+    //    Access:
+    //      - read: Authenticated student can read ONLY their own orders (resource.data.uid == request.auth.uid)
+    //      - write: Completely disallowed for clients (Admin SDK only)
+    //
+    // 3. Collection: payments/{paymentId}
+    //    Document ID: Razorpay payment ID
+    //    Description: Verified payment logs and signatures managed by Cloud Functions.
+    //    Access:
+    //      - read, write: Completely disallowed for clients (Admin SDK only)
+    //
+    // 4. Default Catch-All:
+    //    - All other collections/documents: Deny all reads and writes
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the caller is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource (path-based ownership)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user is owner based on document's uid field
+    function isDocOwner() {
+      return isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // Validate that only allowed fields exist in the document data
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate that required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate optional string (if present, must be string and within length bounds)
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data) ||
+             (data[field] is string &&
+              data[field].size() >= minLen &&
+              data[field].size() <= maxLen);
+    }
+
+    // Check that NO entitlement fields are present in the incoming data
+    function hasNoEntitlementFields(data) {
+      return !data.keys().hasAny([
+        'isPaid',
+        'expiresAt',
+        'paidAt',
+        'plan',
+        'paymentId',
+        'orderId'
+      ]);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Comprehensive document validator for users/{userId}
+    // Called in BOTH create and update rules to eliminate the Update Bypass vulnerability
+    function isValidUser(data) {
+      return hasOnlyAllowedFields([
+               'name', 'phone', 'email', 'createdAt', 'updatedAt',
+               'isPaid', 'expiresAt', 'paidAt', 'plan', 'paymentId', 'orderId'
+             ]) &&
+             // Profile fields validation
+             isValidOptionalString(data, 'name', 1, 50) &&
+             isValidOptionalString(data, 'phone', 0, 20) &&
+             isValidOptionalString(data, 'email', 0, 100) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             // Entitlement fields validation (type safety & bounds when written by Admin SDK)
+             (!('isPaid' in data) || data.isPaid is bool) &&
+             (!('expiresAt' in data) || data.expiresAt is timestamp) &&
+             (!('paidAt' in data) || data.paidAt is timestamp) &&
+             isValidOptionalString(data, 'plan', 1, 50) &&
+             isValidOptionalString(data, 'paymentId', 1, 100) &&
+             isValidOptionalString(data, 'orderId', 1, 100);
+    }
+
+    // Enforce that client updates to users/{userId} modify ONLY safe profile fields
+    // and CANNOT modify, add, or delete any payment or entitlement fields
+    function isAllowedUserUpdate() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(['name', 'phone', 'updatedAt']) &&
+             !affected.hasAny([
+               'isPaid', 'expiresAt', 'paidAt', 'plan', 'paymentId', 'orderId',
+               'createdAt', 'email', 'id', 'uid'
+             ]);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // -----------------------------------------------------------
+    // Users Collection
+    // -----------------------------------------------------------
+    match /users/{userId} {
+      // Authenticated student may read ONLY their own user document
+      allow read: if isOwner(userId);
+
+      // Authenticated student may create their own profile ONLY without entitlement fields
+      allow create: if isOwner(userId) &&
+                       hasRequiredFields(['name']) &&
+                       isValidUser(request.resource.data) &&
+                       hasNoEntitlementFields(request.resource.data);
+
+      // Authenticated student may update ONLY their own non-sensitive fields (name, phone, updatedAt)
+      // Entitlement fields ('isPaid', 'expiresAt', etc.) can NEVER be modified by clients
+      allow update: if isOwner(userId) &&
+                       isValidUser(request.resource.data) &&
+                       isAllowedUserUpdate();
+
+      // Deletes are strictly disallowed for clients (Admin SDK only)
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------
+    // Orders Collection
+    // -----------------------------------------------------------
+    match /orders/{orderId} {
+      // Authenticated student may read an order ONLY if resource.data.uid matches their UID
+      allow read: if isDocOwner();
+
+      // Created, updated, and deleted exclusively by backend Cloud Functions (Admin SDK)
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------
+    // Payments Collection
+    // -----------------------------------------------------------
+    match /payments/{paymentId} {
+      // Sensitive payment records and verification webhooks
+      // Managed exclusively by backend Cloud Functions (Admin SDK)
+      // Students cannot read, write, or delete
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------
+    // Default Deny
+    // -----------------------------------------------------------
+    // Deny all reads and writes for any other collection or document
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

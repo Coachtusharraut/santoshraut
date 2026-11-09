@@ -2,6 +2,25 @@ const fs = require('fs');
 
 const units21Complete = JSON.parse(fs.readFileSync('./units_21_complete.json', 'utf8'));
 
+// Units client manifest: Full content for free demo lessons (0, 1, 2),
+// but metadata-only for paid lessons (3-20) to keep paid questions and story text
+// securely protected on the Cloud Functions backend.
+const clientUnits = units21Complete.map((u, i) => {
+  if (i < 3) return u;
+  return {
+    id: u.id,
+    icon: u.icon,
+    title: u.title,
+    place: u.place,
+    grade: u.grade,
+    bg: u.bg,
+    desc: u.desc,
+    isLocked: true,
+    lesson: null,
+    questions: []
+  };
+});
+
 // Extract base original CSS
 const originalHtml = fs.readFileSync('./vyakaranveer-app/index.html.bak', 'utf8');
 const originalCssStart = originalHtml.indexOf('<style>') + 7;
@@ -23,6 +42,10 @@ const fullHtml = `<!doctype html>
 <title>व्याकरणवीर — मराठी व्याकरणाची शब्दयात्रा | संतोष राऊत</title>
 <!-- Razorpay Standard Checkout SDK -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- Firebase SDKs (Compat v10 for Auth, Firestore & Emulators) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 ${combinedCss}
 </style>
@@ -549,8 +572,8 @@ ${combinedCss}
 
 <!-- Application Logic -->
 <script>
-// Master Data: 21 Complete Units
-const DEFAULT_UNITS = ${JSON.stringify(units21Complete, null, 2)};
+// Master Data: 21 Complete Units (Client manifest with server-protected paid lessons)
+const DEFAULT_UNITS = ${JSON.stringify(clientUnits, null, 2)};
 
 // Master Data: Default Branding
 const DEFAULT_BRANDING = {
@@ -581,9 +604,77 @@ const DEFAULT_BRANDING = {
 let branding = Object.assign({}, DEFAULT_BRANDING, JSON.parse(localStorage.getItem('vv_branding') || '{}'));
 let units = JSON.parse(localStorage.getItem('vv_custom_units') || 'null') || JSON.parse(JSON.stringify(DEFAULT_UNITS));
 const progress = JSON.parse(localStorage.getItem('vv_progress') || '{}');
-let userPlan = JSON.parse(localStorage.getItem('vv_plan') || 'null');
+let userPlan = null;
 let audioEnabled = localStorage.getItem('vv_audio') !== 'false';
 let isAdminAuthenticated = false;
+
+// -------------------------------------------------------------
+// Firebase Configuration & Local Emulator Support
+// -------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "local-emulator-key",
+  authDomain: "marathi-vyakaram.firebaseapp.com",
+  projectId: "marathi-vyakaram",
+  storageBucket: "marathi-vyakaram.appspot.com"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Connect to Local Emulators when running locally
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  auth.useEmulator('http://127.0.0.1:9099');
+  db.useEmulator('127.0.0.1', 8080);
+  console.log('⚡ Connected to Firebase Auth (9099) & Firestore (8080) Emulators');
+}
+
+let currentAuthUser = null;
+let currentEntitlement = null;
+let entitlementUnsubscribe = null;
+
+// Silent Anonymous Authentication in Background
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentAuthUser = user;
+    console.log('👤 Silent Anonymous Student Authenticated:', user.uid);
+    listenToEntitlement(user.uid);
+  } else {
+    try {
+      const cred = await auth.signInAnonymously();
+      currentAuthUser = cred.user;
+      console.log('👤 Initialized Anonymous Student:', currentAuthUser.uid);
+    } catch (err) {
+      console.error('Anonymous sign-in error:', err);
+    }
+  }
+});
+
+function listenToEntitlement(uid) {
+  if (entitlementUnsubscribe) entitlementUnsubscribe();
+  entitlementUnsubscribe = db.collection('users').doc(uid).onSnapshot((doc) => {
+    if (doc.exists && doc.data().isPaid) {
+      currentEntitlement = doc.data();
+      userPlan = {
+        isPaid: true,
+        plan: doc.data().plan || 'annual_21',
+        planName: doc.data().planName || '१ वर्ष संपूर्ण ॲक्सेस',
+        expiresAt: doc.data().expiresAt ? (doc.data().expiresAt.toMillis ? doc.data().expiresAt.toMillis() : doc.data().expiresAt) : (Date.now() + 365*24*60*60*1000),
+        paymentId: doc.data().paymentId || ''
+      };
+      console.log('🎉 Verified 365-day Entitlement active for student:', uid);
+    } else {
+      currentEntitlement = null;
+      userPlan = null;
+    }
+    renderMap();
+    updateSubscriptionUI();
+  }, (err) => {
+    console.warn('Entitlement snapshot error:', err);
+  });
+}
 
 const state = {
   name: localStorage.getItem('vv_name') || '',
@@ -633,11 +724,16 @@ function handleRoute() {
 }
 window.addEventListener('hashchange', handleRoute);
 
-// Subscription & Paywall Logic
+// Subscription & Paywall Logic (Strictly Verified via Firestore Entitlement)
 function hasActiveAccess() {
-  if (!userPlan || !userPlan.isPaid) return false;
-  if (userPlan.expiresAt && Date.now() > userPlan.expiresAt) return false;
-  return true;
+  if (currentEntitlement && currentEntitlement.isPaid) {
+    if (currentEntitlement.expiresAt) {
+      const expMs = currentEntitlement.expiresAt.toMillis ? currentEntitlement.expiresAt.toMillis() : new Date(currentEntitlement.expiresAt).getTime();
+      return expMs > Date.now();
+    }
+    return true;
+  }
+  return false;
 }
 
 function updateSubscriptionUI() {
@@ -646,12 +742,16 @@ function updateSubscriptionUI() {
   const unlockTopBtn = el('unlockTopBtn');
   if (isPaid) {
     subBadge.style.display = 'inline-flex';
-    const expDate = new Date(userPlan.expiresAt).toLocaleDateString('mr-IN');
+    let expDate = '१ वर्ष';
+    if (currentEntitlement && currentEntitlement.expiresAt) {
+      const expMs = currentEntitlement.expiresAt.toMillis ? currentEntitlement.expiresAt.toMillis() : new Date(currentEntitlement.expiresAt).getTime();
+      expDate = new Date(expMs).toLocaleDateString('mr-IN');
+    }
     el('subBadgeText').textContent = '१ वर्ष सदस्यत्व सक्रिय (वैध: ' + expDate + ')';
     unlockTopBtn.style.display = 'none';
   } else {
     subBadge.style.display = 'none';
-    unlockTopBtn.style.display = 'inline-block';
+    unlockTopBtn.style.display = 'inline-flex';
   }
 }
 
@@ -868,9 +968,46 @@ function refreshStats() {
 }
 
 // Unit & Quiz Gameplay
-function openUnit(index) {
+async function openUnit(index) {
   state.unit = index;
   const u = units[index];
+
+  // If questions/lesson not loaded yet (paid lessons 3-20), fetch securely from backend
+  if (!u.questions || !u.questions.length || !u.lesson) {
+    if (!auth.currentUser) {
+      try {
+        await auth.signInAnonymously();
+      } catch(e) {}
+    }
+    toast('धडा सुरक्षितपणे लोड होत आहे...');
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/get-lesson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ unitIndex: index })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403 || data.error === 'PAID_MEMBERSHIP_REQUIRED') {
+          openPaywallModal(index);
+          return;
+        }
+        toast('धडा उघडताना अडचण: ' + (data.message || 'Error'));
+        return;
+      }
+      u.lesson = data.lesson;
+      u.questions = data.questions;
+    } catch (e) {
+      console.error('Fetch lesson error:', e);
+      toast('सर्व्हरशी संपर्क होऊ शकला नाही.');
+      return;
+    }
+  }
+
   state.questions = u.questions || [];
   state.index = 0;
   state.score = 0;
@@ -1068,8 +1205,8 @@ function openPaywallModal(unitIdx) {
   el('paywallModal').classList.add('show');
 }
 
-function handlePayNow() {
-  const name = el('payStudentName').value.trim() || state.name || 'विद्यार्थी';
+async function handlePayNow() {
+  const name = el('payStudentName').value.trim() || state.name || 'मराठी विद्यार्थी';
   const phone = el('payStudentPhone').value.trim();
 
   if (name && !state.name) {
@@ -1078,38 +1215,105 @@ function handlePayNow() {
     refreshStats();
   }
 
-  // If Merchant has configured live Razorpay Key
-  if (branding.razorpayKey && window.Razorpay) {
+  const payBtn = el('payNowBtn');
+  const originalText = payBtn.innerHTML;
+  payBtn.disabled = true;
+  payBtn.innerHTML = '⏳ ऑर्डर तयार करत आहे...';
+
+  try {
+    if (!auth.currentUser) {
+      await auth.signInAnonymously();
+    }
+    const token = await auth.currentUser.getIdToken();
+
+    // 1. Create order on Cloud Functions backend (strictly 2100 paise = ₹21.00)
+    const orderRes = await fetch('/api/create-order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    });
+
+    const orderData = await orderRes.json();
+    if (!orderRes.ok || !orderData.orderId) {
+      throw new Error(orderData.message || 'ऑर्डर तयार करता आली नाही.');
+    }
+
+    // 2. Open Razorpay Standard Checkout
     const options = {
-      key: branding.razorpayKey,
-      amount: branding.fee * 100, // paise (₹21 = 2100)
-      currency: 'INR',
-      name: branding.appName,
-      description: '१ वर्ष संपूर्ण ॲक्सेस — ' + branding.subTitle,
+      key: orderData.keyId,
+      amount: orderData.amount, // strictly 2100 paise
+      currency: orderData.currency || 'INR',
+      name: branding.appName || 'व्याकरणवीर',
+      description: '१ वर्ष संपूर्ण ॲक्सेस — ' + (branding.subTitle || 'मराठी व्याकरण'),
       image: branding.authorPhoto || 'assets/santosh-raut.jpg',
+      order_id: orderData.orderId,
       prefill: {
         name: name,
-        contact: phone
+        contact: phone || ''
       },
       theme: {
         color: branding.primaryColor || '#1e6454'
       },
-      handler: function (response) {
-        activateSubscription(name, phone, response.razorpay_payment_id);
+      handler: async function (response) {
+        toast('💳 पेमेंट पूर्ण झाले! सर्व्हर पडताळणी सुरू आहे...');
+        payBtn.innerHTML = '⏳ पेमेंट पडताळत आहे...';
+        try {
+          const verifyToken = await auth.currentUser.getIdToken();
+          const verifyRes = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + verifyToken
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok) {
+            throw new Error(verifyData.message || 'पेमेंट पडताळणी अयशस्वी');
+          }
+
+          // Verified and entitlement granted!
+          recordStudent(name, phone, true, Date.now() + (365 * 24 * 60 * 60 * 1000));
+          el('paywallModal').classList.remove('show');
+          fireConfetti();
+          playSound('win');
+          toast('🎉 ' + (verifyData.message || 'अभिनंदन! आपले १ वर्षाचे सदस्यत्व सक्रिय झाले!'));
+        } catch (vErr) {
+          console.error('Payment verification failed:', vErr);
+          toast('❌ ' + vErr.message);
+        } finally {
+          payBtn.disabled = false;
+          payBtn.innerHTML = originalText;
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          payBtn.disabled = false;
+          payBtn.innerHTML = originalText;
+          toast('पेमेंट प्रक्रिया रद्द केली गेली.');
+        }
       }
     };
-    try {
+
+    if (window.Razorpay) {
       const rzp = new window.Razorpay(options);
       rzp.open();
-      return;
-    } catch(e) {
-      console.warn('Razorpay checkout failed, opening UPI fallback', e);
+    } else {
+      throw new Error('Razorpay SDK लोड होऊ शकले नाही. कृपया इंटरनेट कनेक्शन तपासा.');
     }
+  } catch (err) {
+    console.error('Pay error:', err);
+    toast('❌ त्रुटी: ' + err.message);
+    payBtn.disabled = false;
+    payBtn.innerHTML = originalText;
   }
-
-  // Fallback: If no Razorpay Key configured yet, show Santosh Raut's UPI QR modal
-  el('paywallModal').classList.remove('show');
-  openUpiModal(name, phone);
 }
 
 function openUpiModal(name, phone) {
@@ -1295,14 +1499,32 @@ function populateAdminCMS() {
   loadCmsLesson(currentCmsLessonIdx);
 }
 
-function loadCmsLesson(idx) {
+async function loadCmsLesson(idx) {
   currentCmsLessonIdx = idx;
   const u = units[idx];
+  if (!u.lesson || !u.questions || !u.questions.length) {
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+      const res = await fetch('/api/get-lesson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+        },
+        body: JSON.stringify({ unitIndex: idx })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        u.lesson = d.lesson;
+        u.questions = d.questions;
+      }
+    } catch(e) {}
+  }
   el('cmsLessonTitle').value = u.title || '';
   el('cmsLessonPlace').value = u.place || '';
-  el('cmsLessonBody').value = u.lesson.body || '';
-  el('cmsLessonExample').value = u.lesson.example || '';
-  el('cmsLessonPoints').value = (u.lesson.points || []).join('\\n');
+  el('cmsLessonBody').value = (u.lesson && u.lesson.body) || '';
+  el('cmsLessonExample').value = (u.lesson && u.lesson.example) || '';
+  el('cmsLessonPoints').value = (u.lesson && u.lesson.points || []).join('\\n');
 
   renderCmsQuestions();
 }
