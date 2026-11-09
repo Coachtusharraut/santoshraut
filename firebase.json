@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "santoshraut",
+    "public": "vyakaranveer-app",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
+

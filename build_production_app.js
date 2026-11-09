@@ -1,0 +1,137 @@
+const fs = require('fs');
+
+const units21Complete = JSON.parse(fs.readFileSync('./units_21_complete.json', 'utf8'));
+
+// Read original index.html.bak to extract the exact base CSS
+const originalHtml = fs.readFileSync('./vyakaranveer-app/index.html.bak', 'utf8');
+const originalCssStart = originalHtml.indexOf('<style>') + 7;
+const originalCssEnd = originalHtml.indexOf('</style>');
+const baseCss = originalHtml.slice(originalCssStart, originalCssEnd);
+
+// Additional CSS specifically crafted for Production
+const productionCss = `
+/* Additional Production CSS for Paywall, Chips & Admin SaaS Console */
+
+/* Unit Card Chips & Badges */
+.free-chip{background:#e2f5d5;color:#1e6454;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;letter-spacing:.3px}
+.lock-chip{background:#fff0eb;color:#d35400;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;border:1px solid #f9cdb8}
+.unlocked-chip{background:#d9ef8a;color:#183f3a;font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px}
+.unit.locked{background:#fffdfa;border-color:#ecdcc3}
+.unit.locked .unit-btn{background:linear-gradient(135deg,#ff9e59,#ef765f);color:#fff;box-shadow:0 4px 12px rgba(239,118,95,.25);cursor:pointer}
+.unit.locked .unit-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(239,118,95,.35);background:linear-gradient(135deg,#ff9247,#e6634b)}
+
+/* Topbar Subscription Badge */
+.sub-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-weight:700;font-size:12px;background:linear-gradient(135deg,#fff8e7,#fff1c2);color:#7a5205;border:1px solid #ecc664;box-shadow:0 2px 8px rgba(218,165,32,.18)}
+.unlock-cta-pill{background:linear-gradient(135deg,#ff9e59,#ef765f)!important;color:#fff!important;border:none!important;font-weight:800!important;animation:pulseBtn 2.2s infinite;cursor:pointer}
+@keyframes pulseBtn{0%,100%{transform:scale(1)}50%{transform:scale(1.04);box-shadow:0 4px 18px rgba(239,118,95,.4)}}
+.icon-pill{padding:8px 12px;font-size:16px}
+.admin-link-btn{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px;padding:6px 12px;margin-top:14px;border-radius:8px;transition:.2s}
+.admin-link-btn:hover{color:var(--ink);background:var(--cream)}
+
+/* Modals */
+.modal{position:fixed;inset:0;background:rgba(18,45,41,.65);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;overflow-y:auto}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:28px;max-width:540px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.22);position:relative;max-height:92vh;overflow-y:auto}
+.close-modal-btn{position:absolute;top:18px;right:18px;background:var(--cream);border:none;width:34px;height:34px;border-radius:50%;font-size:20px;font-weight:bold;cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+.close-modal-btn:hover{background:#ecdcc3}
+
+/* Paywall Styling */
+.paywall-card{max-width:560px;border:2px solid #f2ddb3}
+.paywall-header{text-align:center;margin-bottom:16px}
+.trophy-badge{font-size:46px;margin-bottom:4px;filter:drop-shadow(0 6px 12px rgba(240,165,0,.25))}
+.paywall-header h2{font-size:23px;margin:0 0 6px;color:var(--ink);line-height:1.25}
+.paywall-sub{font-size:13px;color:var(--muted);margin:0}
+.paywall-price-banner{background:linear-gradient(135deg,#1e6454,#183f3a);color:#fff;border-radius:18px;padding:16px 20px;text-align:center;margin:16px 0;box-shadow:0 8px 24px rgba(30,100,84,.25)}
+.price-val{font-size:32px;font-weight:800;color:var(--lime);display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.tax-tag{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px}
+.validity-val{font-size:13px;color:#e8f4ed;margin-top:4px;font-weight:600}
+.paywall-features{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:14px 18px;margin-bottom:16px}
+.feat-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.45}
+.feat-item:last-child{margin-bottom:0}
+.feat-check{color:#1e6454;font-weight:900;font-size:15px}
+.paywall-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.form-row label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff;color:var(--ink)}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--green);outline:none}
+.pay-cta-btn{width:100%;padding:15px;font-size:17px;font-weight:800;background:linear-gradient(135deg,#ff9e59,#ef765f);color:#fff;border:none;border-radius:16px;box-shadow:0 8px 20px rgba(239,118,95,.3);cursor:pointer;transition:.15s}
+.pay-cta-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(239,118,95,.4)}
+.pay-trust-note{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;font-weight:600}
+
+/* Dedicated Admin Login Screen */
+.admin-login-wrapper{min-height:85vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.admin-login-box{max-width:440px;width:100%;text-align:center}
+.admin-login-brand{margin-bottom:24px}
+.admin-login-brand .brandmark{margin:0 auto 12px;width:54px;height:54px;font-size:28px}
+.admin-login-brand h2{font-size:26px;margin:0 0 6px;color:var(--ink)}
+.admin-login-brand p{color:var(--muted);font-size:14px;margin:0}
+.admin-login-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:32px 28px;box-shadow:var(--shadow)}
+.login-shield-icon{font-size:42px;margin-bottom:8px}
+.admin-login-card h3{margin:0 0 6px;font-size:20px;color:var(--ink)}
+.login-sub{font-size:13px;color:var(--muted);margin:0 0 20px;line-height:1.45}
+.password-input-wrapper{position:relative;display:flex;align-items:center}
+.password-input-wrapper input{width:100%;padding:13px 44px 13px 16px;border:1px solid var(--line);border-radius:14px;font-size:16px;background:#fff}
+.password-input-wrapper input:focus{border-color:var(--green);outline:none}
+.eye-toggle-btn{position:absolute;right:12px;background:none;border:none;font-size:18px;cursor:pointer;opacity:.65}
+.eye-toggle-btn:hover{opacity:1}
+.admin-login-btn{width:100%;padding:14px;margin-top:18px;font-size:16px;border-radius:14px}
+.admin-login-foot{margin-top:20px}
+.back-link{font-size:13px;color:var(--muted);text-decoration:none;font-weight:700}
+.back-link:hover{color:var(--ink);text-decoration:underline}
+
+/* Dedicated Full-Screen Admin Command Center */
+.admin-console-wrapper{max-width:1200px;margin:auto;padding:12px 16px 60px}
+.admin-topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--green);color:#fff;border-radius:20px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,100,84,.2)}
+.admin-brand-bar{display:flex;align-items:center;gap:12px}
+.admin-topbar-actions{display:flex;gap:10px;align-items:center}
+.admin-nav-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;border-bottom:2px solid var(--line);padding-bottom:10px}
+.admin-nav-btn{padding:10px 18px;border-radius:14px;background:#fff;border:1px solid var(--line);color:var(--ink);font-weight:800;font-size:13px;cursor:pointer;transition:.18s}
+.admin-nav-btn:hover{background:var(--cream)}
+.admin-nav-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.admin-tab-pane{display:none}
+.admin-tab-pane.active{display:block}
+
+/* Admin Dashboard Elements */
+.admin-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.03)}
+.kpi-card strong{font-size:28px;display:block;color:var(--green);margin-top:4px}
+.kpi-card small{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.admin-panel-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 4px 14px rgba(0,0,0,.03)}
+.admin-panel-card h3{margin:0 0 16px;font-size:18px;color:var(--ink);display:flex;align-items:center;gap:8px}
+.admin-table{width:100%;border-collapse:collapse;font-size:13px}
+.admin-table th,.admin-table td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left}
+.admin-table th{background:var(--cream);font-weight:800;color:var(--ink)}
+.status-pill{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:800}
+.status-pill.active{background:#e2f5d5;color:#1e6454}
+.status-pill.free{background:#fdf2d8;color:#9b6807}
+.status-pill.expired{background:#fde0db;color:#a8321e}
+.btn-unlock-sm{padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;transition:.15s}
+.btn-unlock-sm:hover{background:#154a3e}
+.btn-del-sm{padding:6px 10px;background:#fff;color:#c0392b;border:1px solid #ecc664;border-radius:10px;font-size:12px;cursor:pointer}
+
+/* Step-by-Step Payment Setup Guide Card */
+.guide-step-box{background:#f6faf7;border:1px solid #cce8d7;border-radius:16px;padding:18px;margin-bottom:14px}
+.step-num{display:inline-block;width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;text-align:center;line-height:28px;font-weight:800;font-size:13px;margin-right:8px}
+
+/* CMS Accordion */
+.cms-accordion{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:#fff}
+.cms-acc-head{padding:14px 18px;background:var(--paper);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:700;font-size:13px}
+.cms-acc-body{padding:18px;display:none;border-top:1px solid var(--line)}
+.cms-acc-body.open{display:block}
+.opt-radio-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.opt-radio-row input[type="radio"]{accent-color:var(--green);transform:scale(1.2)}
+
+.confetti-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:99999}
+
+@media(max-width:850px){
+  .admin-kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .admin-topbar{flex-direction:column;gap:12px;align-items:flex-start}
+}
+@media(max-width:560px){
+  .admin-kpi-grid{grid-template-columns:1fr}
+  .paywall-form{grid-template-columns:1fr}
+}
+`;
+
+fs.writeFileSync('./production_css.css', productionCss);
+console.log('Production CSS written.');
+

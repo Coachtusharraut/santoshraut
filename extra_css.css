@@ -1,0 +1,92 @@
+
+/* Premium & Paywall Additions */
+.sub-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-weight:700;font-size:12px;background:linear-gradient(135deg,#fff8e7,#fff1c2);color:#7a5205;border:1px solid #ecc664;box-shadow:0 2px 8px rgba(218,165,32,.18)}
+.unlock-cta-pill{background:linear-gradient(135deg,#ff9e59,#ef765f)!important;color:#fff!important;border:none!important;font-weight:800!important;animation:pulseBtn 2.2s infinite;cursor:pointer}
+@keyframes pulseBtn{0%,100%{transform:scale(1)}50%{transform:scale(1.04);box-shadow:0 4px 18px rgba(239,118,95,.4)}}
+.icon-pill{padding:8px 12px;font-size:16px}
+.unit-locked{position:relative;opacity:.92;background:#fcfbf7}
+.lock-overlay-tag{position:absolute;top:12px;right:12px;background:rgba(24,63,58,.88);color:#d9ef8a;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
+.free-demo-tag{position:absolute;top:12px;right:12px;background:#e2f5d5;color:#1e6454;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px}
+.admin-link-btn{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12px;padding:6px 10px;margin-top:12px;border-radius:6px;transition:.2s}
+.admin-link-btn:hover{color:var(--ink);background:var(--cream)}
+
+/* Modals */
+.modal{position:fixed;inset:0;background:rgba(18,45,41,.65);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;overflow-y:auto}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:28px;max-width:540px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.22);position:relative;max-height:92vh;overflow-y:auto}
+.close-modal-btn{position:absolute;top:18px;right:18px;background:var(--cream);border:none;width:34px;height:34px;border-radius:50%;font-size:20px;font-weight:bold;cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+.close-modal-btn:hover{background:#ecdcc3}
+
+/* Paywall Styling */
+.paywall-card{max-width:580px;border:2px solid #f2ddb3}
+.paywall-header{text-align:center;margin-bottom:18px}
+.trophy-badge{font-size:48px;margin-bottom:4px;filter:drop-shadow(0 6px 12px rgba(240,165,0,.25))}
+.paywall-header h2{font-size:24px;margin:0 0 6px;color:var(--ink);line-height:1.25}
+.paywall-sub{font-size:13px;color:var(--muted);margin:0}
+.paywall-price-banner{background:linear-gradient(135deg,#1e6454,#183f3a);color:#fff;border-radius:18px;padding:16px 20px;text-align:center;margin:18px 0;box-shadow:0 8px 24px rgba(30,100,84,.25)}
+.price-val{font-size:32px;font-weight:800;color:var(--lime);display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.tax-tag{font-size:12px;font-weight:700;color:#fff;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px}
+.validity-val{font-size:13px;color:#e8f4ed;margin-top:4px;font-weight:600}
+.paywall-features{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:14px 18px;margin-bottom:18px}
+.feat-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.45}
+.feat-item:last-child{margin-bottom:0}
+.feat-check{color:#1e6454;font-weight:900;font-size:15px}
+.paywall-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.form-row label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff;color:var(--ink)}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--green);outline:none}
+.pay-cta-btn{width:100%;padding:15px;font-size:17px;font-weight:800;background:linear-gradient(135deg,#ff9e59,#ef765f);color:#fff;border:none;border-radius:16px;box-shadow:0 8px 20px rgba(239,118,95,.3);cursor:pointer;transition:.15s}
+.pay-cta-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(239,118,95,.4)}
+.pay-trust-note{text-align:center;font-size:11px;color:var(--muted);margin-top:10px;font-weight:600}
+
+/* UPI Direct / Simulator Modal */
+.upi-card{max-width:480px;text-align:center}
+.upi-qr-box{background:var(--cream);border-radius:18px;padding:16px;margin:16px auto;max-width:280px;border:1px solid var(--line)}
+.qr-code-placeholder{background:#fff;border-radius:12px;padding:10px;display:flex;justify-content:center;align-items:center;margin-bottom:10px}
+.qr-code-placeholder svg{max-width:180px;max-height:180px}
+.upi-id-copy{font-size:13px;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:8px}
+.pill-sm{padding:4px 9px;border:1px solid var(--line);background:#fff;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer}
+.quick-upi-apps{display:flex;gap:8px;justify-content:center;margin:14px 0}
+.upi-app-btn{padding:9px 18px;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block;transition:.15s}
+.upi-app-btn.gpay{background:#4285f4;color:#fff}
+.upi-app-btn.phonepe{background:#5f259f;color:#fff}
+.upi-app-btn.paytm{background:#00b9f5;color:#fff}
+.utr-input-box{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:14px 0;text-align:left}
+.utr-input-box label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px}
+.sim-box{background:#f0f7f4;border:1px dashed #b7ded0;border-radius:12px;padding:10px 14px;margin-top:14px}
+.btn-sm{padding:8px 14px;font-size:12px;border-radius:10px}
+
+/* Admin Console Styling */
+.admin-modal-card{max-width:920px;width:96%;max-height:92vh;padding:24px 28px}
+.admin-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.admin-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:18px}
+.admin-tab{padding:8px 16px;border-radius:12px;background:var(--paper);border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.admin-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.admin-tab-content{display:none}
+.admin-tab-content.active{display:block}
+.admin-grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.admin-stat-card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.admin-stat-card strong{display:block;font-size:24px;color:var(--green)}
+.admin-stat-card small{font-size:12px;color:var(--muted);font-weight:700}
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+.admin-table th,.admin-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+.admin-table th{background:var(--cream);font-weight:800;color:var(--ink)}
+.status-pill{padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
+.status-pill.active{background:#e2f5d5;color:#1e6454}
+.status-pill.free{background:#fdf2d8;color:#9b6807}
+.status-pill.expired{background:#fde0db;color:#a8321e}
+.btn-unlock-sm{padding:5px 10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer}
+.btn-unlock-sm:hover{background:#154a3e}
+.btn-del-sm{padding:5px 8px;background:#fff;color:#c0392b;border:1px solid #ecc664;border-radius:8px;font-size:11px;cursor:pointer}
+.cms-accordion{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:#fff}
+.cms-acc-head{padding:12px 16px;background:var(--paper);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:700;font-size:13px}
+.cms-acc-body{padding:16px;display:none;border-top:1px solid var(--line)}
+.cms-acc-body.open{display:block}
+.opt-radio-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.opt-radio-row input[type="radio"]{accent-color:var(--green);transform:scale(1.2)}
+.confetti-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:99999}
+@media(max-width:768px){
+  .admin-grid-stats{grid-template-columns:repeat(2,1fr)}
+  .paywall-form{grid-template-columns:1fr}
+  .admin-modal-card{padding:18px 14px}
+}
