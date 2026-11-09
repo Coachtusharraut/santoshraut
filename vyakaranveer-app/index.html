@@ -1096,9 +1096,9 @@
       <div style="font-size:12px;font-weight:800;color:var(--green)">
         📷 किंवा मोबाईलवरून खालील QR कोड स्कॅन करून ₹१ भरा:
       </div>
-      <img id="upiDynamicQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3D9552489452%40ybl%26pn%3DTushar%2520Raut%26am%3D1%26cu%3DINR%26tn%3DMarathi%2520Vyakaranveer" alt="UPI QR Code" />
+      <img id="upiDynamicQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dtsraut2001-1%40oksbi%26pn%3DTushar%2520Raut%26am%3D1%26cu%3DINR%26tn%3DMarathi%2520Vyakaranveer" alt="UPI QR Code" />
       <div style="font-size:12px;color:var(--muted);margin-top:4px">
-        UPI ID: <code id="displayUpiId" style="font-weight:800;background:var(--cream);padding:2px 6px;border-radius:4px">9552489452@ybl</code>
+        UPI ID: <code id="displayUpiId" style="font-weight:800;background:var(--cream);padding:2px 6px;border-radius:4px">tsraut2001-1@oksbi</code>
         <button type="button" class="copy-btn" id="copyUpiTextBtn" style="margin-left:6px">📋 कॉपी</button>
       </div>
     </div>
@@ -3280,7 +3280,7 @@ const DEFAULT_BRANDING = {
   freeLessonsCount: 3,
   razorpayKey: '',
   razorpayLink: 'https://rzp.io/rzp/3HZZGlT',
-  upiId: '9552489452@ybl',
+  upiId: 'tsraut2001-1@oksbi',
   gpayUpiId: 'tsraut2001-1@oksbi',
   phonepeUpiId: '9552489452@ybl',
   paytmUpiId: '9552489452@ptsbi',
@@ -4030,7 +4030,7 @@ function openDirectUpi(upiId, appName) {
     refreshStats();
   }
 
-  const targetUpiId = upiId || branding.upiId || '9552489452@ybl';
+  const targetUpiId = upiId || branding.upiId || 'tsraut2001-1@oksbi';
   const payee = branding.payeeName || 'Tushar Raut';
   const amount = branding.fee || 1;
   const note = 'Marathi Vyakaranveer 1 Year';
@@ -4172,7 +4172,7 @@ async function performAutomatedActivation(source, phoneInput, nameInput, customP
 }
 
 async function handlePayNow() {
-  openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI');
+  openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'UPI');
 }
 
 async function handleActivateAccess() {
@@ -4605,7 +4605,7 @@ function applyBrandingToDOM() {
   if (branding.primaryColor) document.documentElement.style.setProperty('--green', branding.primaryColor);
   if (branding.accentColor) document.documentElement.style.setProperty('--lime', branding.accentColor);
 
-  const targetUpi = branding.upiId || '9552489452@ybl';
+  const targetUpi = branding.upiId || 'tsraut2001-1@oksbi';
   if (el('displayUpiId')) el('displayUpiId').textContent = targetUpi;
   if (el('upiDynamicQrImg')) {
     const payee = branding.payeeName || 'Tushar Raut';
@@ -5254,19 +5254,19 @@ function initEventListeners() {
 
   if (el('payNowBtn')) el('payNowBtn').addEventListener('click', handlePayNow);
   if (el('payUnifiedUpiBtn')) {
-    el('payUnifiedUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI'));
+    el('payUnifiedUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'UPI'));
   }
   if (el('payGpayBtn')) {
-    el('payGpayBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'Google Pay'));
+    el('payGpayBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'Google Pay'));
   }
   if (el('payPhonepeBtn')) {
-    el('payPhonepeBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'PhonePe'));
+    el('payPhonepeBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'PhonePe'));
   }
   if (el('payPaytmBtn')) {
-    el('payPaytmBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'Paytm'));
+    el('payPaytmBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'Paytm'));
   }
   if (el('payAnyUpiBtn')) {
-    el('payAnyUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || '9552489452@ybl', 'UPI'));
+    el('payAnyUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'UPI'));
   }
   if (el('copyUpiTextBtn')) {
     el('copyUpiTextBtn').addEventListener('click', () => {
