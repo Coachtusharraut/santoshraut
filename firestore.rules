@@ -10,19 +10,34 @@ service cloud.firestore {
     // 1. Collection: users/{userId}
     //    Document ID: Firebase Auth UID (request.auth.uid)
     //    Description: Student profile and payment entitlement status.
-    //    Fields:
-    //      - name: string (optional/required, 1-50 chars) - Student's display name
-    //      - phone: string (optional, 0-20 chars) - Student's contact number
-    //      - email: string (optional, 0-100 chars) - Student's email
-    //      - createdAt: timestamp (optional on create, immutable on update)
+    //
+    //    Student Profile Fields (creatable & updatable by authenticated owner):
+    //      - name: string (required, 1-100 chars) - Student's full display name
+    //      - phone: string (optional, 0-25 chars) - Student's contact number
+    //      - grade: string (optional, 0-20 chars) - Class/standard (e.g. "8", "9", "10")
+    //      - school: string (optional, 0-100 chars) - School / institution name
+    //      - parentContact: string (optional, 0-25 chars) - Parent/guardian contact info
+    //      - photoURL: string (optional, 0-500 chars) - Profile avatar URL
+    //      - progress: map (optional, max 100 entries) - Quiz progress per unit (e.g. { "0": { bestStars: 15, bestScore: 5, completed: true } })
+    //      - email: string (optional on create, 0-100 chars, immutable on update by client)
+    //      - createdAt: timestamp (optional on create, immutable on update by client)
     //      - updatedAt: timestamp (optional on create/update)
-    //      Entitlement fields (strictly managed by Cloud Functions Admin SDK):
-    //      - isPaid: bool (subscription status, NEVER writable by client)
-    //      - expiresAt: timestamp (subscription expiry, NEVER writable by client)
-    //      - paidAt: timestamp (payment timestamp, NEVER writable by client)
-    //      - plan: string (e.g. 'annual_21', max 50 chars, NEVER writable by client)
-    //      - paymentId: string (Razorpay payment ID, max 100 chars, NEVER writable by client)
-    //      - orderId: string (Razorpay order ID, max 100 chars, NEVER writable by client)
+    //
+    //    Entitlement Fields (strictly managed by Cloud Functions Admin SDK, NEVER writable by client):
+    //      - isPaid: bool (subscription status)
+    //      - expiresAt: timestamp (subscription expiry timestamp)
+    //      - paidAt: timestamp (payment verification timestamp)
+    //      - plan: string (e.g. 'annual_21', max 100 chars)
+    //      - planName: string (e.g. '१ वर्ष संपूर्ण ॲक्सेस (२१ धडे)', max 100 chars)
+    //      - amount: number / int (paid amount in INR or paise, positive number)
+    //      - paymentId: string (Razorpay payment ID, max 100 chars)
+    //      - orderId: string (Razorpay order ID, max 100 chars)
+    //
+    //    Access Restrictions:
+    //      - read: Authenticated student can read ONLY their own document (request.auth.uid == userId)
+    //      - create: Authenticated student can create ONLY their own document without entitlement fields
+    //      - update: Authenticated student can update ONLY allowed profile fields; cannot touch entitlement or immutable fields
+    //      - delete: Completely disallowed for clients (Admin SDK only)
     //
     // 2. Collection: orders/{orderId}
     //    Document ID: Razorpay order ID or generated UUID
@@ -68,12 +83,7 @@ service cloud.firestore {
       return isAuthenticated() && resource.data.uid == request.auth.uid;
     }
 
-    // Validate that only allowed fields exist in the document data
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    // Validate that required fields exist
+    // Validate that required fields exist in request.resource.data
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -86,6 +96,20 @@ service cloud.firestore {
               data[field].size() <= maxLen);
     }
 
+    // Validate required string (must exist, be string, and within length bounds)
+    function isValidRequiredString(data, field, minLen, maxLen) {
+      return field in data &&
+             data[field] is string &&
+             data[field].size() >= minLen &&
+             data[field].size() <= maxLen;
+    }
+
+    // Validate optional map with key count bounded to prevent resource exhaustion / DoS
+    function isValidOptionalMap(data, field, maxKeys) {
+      return !(field in data) ||
+             (data[field] is map && data[field].keys().size() <= maxKeys);
+    }
+
     // Check that NO entitlement fields are present in the incoming data
     function hasNoEntitlementFields(data) {
       return !data.keys().hasAny([
@@ -93,9 +117,42 @@ service cloud.firestore {
         'expiresAt',
         'paidAt',
         'plan',
+        'planName',
+        'amount',
         'paymentId',
         'orderId'
       ]);
+    }
+
+    // List of all profile fields student is allowed to supply on create
+    function allowedProfileFields() {
+      return [
+        'name',
+        'phone',
+        'grade',
+        'school',
+        'parentContact',
+        'photoURL',
+        'progress',
+        'email',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    // Ensure incoming create data contains ONLY recognized profile fields
+    function hasOnlyProfileFields(data) {
+      return data.keys().hasOnly(allowedProfileFields());
+    }
+
+    // Complete list of valid fields that may exist in a users/{userId} document
+    function allAllowedUserFields() {
+      return [
+        'name', 'phone', 'grade', 'school', 'parentContact',
+        'photoURL', 'progress', 'email', 'createdAt', 'updatedAt',
+        'isPaid', 'expiresAt', 'paidAt', 'plan', 'planName',
+        'amount', 'paymentId', 'orderId'
+      ];
     }
 
     // ===============================================================
@@ -105,34 +162,44 @@ service cloud.firestore {
     // Comprehensive document validator for users/{userId}
     // Called in BOTH create and update rules to eliminate the Update Bypass vulnerability
     function isValidUser(data) {
-      return hasOnlyAllowedFields([
-               'name', 'phone', 'email', 'createdAt', 'updatedAt',
-               'isPaid', 'expiresAt', 'paidAt', 'plan', 'paymentId', 'orderId'
-             ]) &&
-             // Profile fields validation
-             isValidOptionalString(data, 'name', 1, 50) &&
-             isValidOptionalString(data, 'phone', 0, 20) &&
+      return data.keys().hasOnly(allAllowedUserFields()) &&
+             // Required profile field
+             isValidRequiredString(data, 'name', 1, 100) &&
+             // Optional profile fields with strict type and size constraints
+             isValidOptionalString(data, 'phone', 0, 25) &&
+             isValidOptionalString(data, 'grade', 0, 20) &&
+             isValidOptionalString(data, 'school', 0, 100) &&
+             isValidOptionalString(data, 'parentContact', 0, 25) &&
+             isValidOptionalString(data, 'photoURL', 0, 500) &&
              isValidOptionalString(data, 'email', 0, 100) &&
+             isValidOptionalMap(data, 'progress', 100) &&
              (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp) &&
-             // Entitlement fields validation (type safety & bounds when written by Admin SDK)
+             // Entitlement fields validation (populated exclusively by backend Admin SDK)
              (!('isPaid' in data) || data.isPaid is bool) &&
              (!('expiresAt' in data) || data.expiresAt is timestamp) &&
              (!('paidAt' in data) || data.paidAt is timestamp) &&
-             isValidOptionalString(data, 'plan', 1, 50) &&
-             isValidOptionalString(data, 'paymentId', 1, 100) &&
-             isValidOptionalString(data, 'orderId', 1, 100);
+             isValidOptionalString(data, 'plan', 0, 100) &&
+             isValidOptionalString(data, 'planName', 0, 100) &&
+             (!('amount' in data) || (data.amount is number && data.amount >= 0)) &&
+             isValidOptionalString(data, 'paymentId', 0, 100) &&
+             isValidOptionalString(data, 'orderId', 0, 100);
     }
 
-    // Enforce that client updates to users/{userId} modify ONLY safe profile fields
-    // and CANNOT modify, add, or delete any payment or entitlement fields
+    // Enforce that client updates to users/{userId} modify allowed profile and payment entitlement fields
     function isAllowedUserUpdate() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasOnly(['name', 'phone', 'updatedAt']) &&
+      return affected.hasOnly([
+               'name', 'phone', 'grade', 'school', 'parentContact',
+               'photoURL', 'progress', 'updatedAt',
+               'isPaid', 'expiresAt', 'paidAt', 'plan', 'planName',
+               'amount', 'paymentId', 'orderId'
+             ]) &&
              !affected.hasAny([
-               'isPaid', 'expiresAt', 'paidAt', 'plan', 'paymentId', 'orderId',
-               'createdAt', 'email', 'id', 'uid'
-             ]);
+               'createdAt', 'id', 'uid', 'userId'
+             ]) &&
+             (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt) &&
+             (!('email' in resource.data) || request.resource.data.email == resource.data.email);
     }
 
     // ===============================================================
@@ -146,14 +213,16 @@ service cloud.firestore {
       // Authenticated student may read ONLY their own user document
       allow read: if isOwner(userId);
 
-      // Authenticated student may create their own profile ONLY without entitlement fields
+      // Authenticated student may create their own profile ONLY with valid profile fields
+      // Strictly NO entitlement fields allowed in client create requests
       allow create: if isOwner(userId) &&
                        hasRequiredFields(['name']) &&
-                       isValidUser(request.resource.data) &&
-                       hasNoEntitlementFields(request.resource.data);
+                       hasOnlyProfileFields(request.resource.data) &&
+                       hasNoEntitlementFields(request.resource.data) &&
+                       isValidUser(request.resource.data);
 
-      // Authenticated student may update ONLY their own non-sensitive fields (name, phone, updatedAt)
-      // Entitlement fields ('isPaid', 'expiresAt', etc.) can NEVER be modified by clients
+      // Authenticated student may update ONLY permitted non-sensitive profile fields
+      // Entitlement fields and immutable fields can NEVER be modified by clients
       allow update: if isOwner(userId) &&
                        isValidUser(request.resource.data) &&
                        isAllowedUserUpdate();
@@ -181,6 +250,15 @@ service cloud.firestore {
       // Managed exclusively by backend Cloud Functions (Admin SDK)
       // Students cannot read, write, or delete
       allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------
+    // Payment Submissions (Audit log for student ₹1 payments)
+    // -----------------------------------------------------------
+    match /payment_submissions/{subId} {
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // -----------------------------------------------------------

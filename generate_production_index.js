@@ -2,24 +2,8 @@ const fs = require('fs');
 
 const units21Complete = JSON.parse(fs.readFileSync('./units_21_complete.json', 'utf8'));
 
-// Units client manifest: Full content for free demo lessons (0, 1, 2),
-// but metadata-only for paid lessons (3-20) to keep paid questions and story text
-// securely protected on the Cloud Functions backend.
-const clientUnits = units21Complete.map((u, i) => {
-  if (i < 3) return u;
-  return {
-    id: u.id,
-    icon: u.icon,
-    title: u.title,
-    place: u.place,
-    grade: u.grade,
-    bg: u.bg,
-    desc: u.desc,
-    isLocked: true,
-    lesson: null,
-    questions: []
-  };
-});
+// Units client manifest: Full content for all 21 lessons
+const clientUnits = units21Complete;
 
 // Extract base original CSS
 const originalHtml = fs.readFileSync('./vyakaranveer-app/index.html.bak', 'utf8');
@@ -71,8 +55,15 @@ ${combinedCss}
         <button id="unlockTopBtn" class="pill unlock-cta-pill">
           🔒 सर्व २१ धडे अनलॉक करा (₹२१)
         </button>
-        <span class="name-tag" id="playerName">नवा खेळाडू</span>
-        <button class="pill" id="profileBtn">✏️ नाव बदला</button>
+        <button id="authTopBtn" class="pill" style="background:var(--green);color:#fff;font-weight:800">
+          🔑 लॉगिन / नोंदणी
+        </button>
+        <div id="studentUserChip" class="student-user-chip" style="display:none;align-items:center;gap:6px;cursor:pointer" title="माझे प्रोफाइल">
+          <span class="user-avatar-tiny" id="userAvatarTiny" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-size:12px;font-weight:800">👤</span>
+          <span class="name-tag" id="playerName">नवा खेळाडू</span>
+        </div>
+        <button class="pill" id="profileBtn" style="display:none">👤 प्रोफाइल</button>
+        <button class="pill" id="logoutTopBtn" style="display:none;font-weight:700">🚪 बाहेर पडा</button>
         <button class="pill icon-pill" id="audioToggleBtn" title="आवाज सुरु/बंद">🔊</button>
         <button class="pill" id="shareBtn">↗️ शेअर</button>
         <button class="pill" id="adminTopBtn" style="background:var(--cream);border-color:#ecdcc3;font-weight:800">⚙️ ॲडमिन</button>
@@ -480,20 +471,229 @@ ${combinedCss}
   </main>
 </div>
 
-<!-- MODAL: Name Profile Prompt -->
-<div class="modal" id="profileModal">
-  <div class="modal-card">
-    <button class="close-modal-btn" id="closeProfileBtn">&times;</button>
-    <h2>तुमचं नाव काय? 👋</h2>
-    <p>तुमच्या गुणपत्रिकेवर कोणतं नाव दिसावं?</p>
-    <div class="form-row" style="margin:14px 0">
-      <input id="nameInput" maxlength="24" placeholder="उदा. सई, अथर्व, आर्या" />
+<!-- MODAL: Student Authentication (Login / Register / Google / Password Recovery) -->
+<div class="modal" id="authModal">
+  <div class="modal-card" style="max-width:440px">
+    <button class="close-modal-btn" id="closeAuthModalBtn">&times;</button>
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:38px;margin-bottom:4px">🚩</div>
+      <h2 style="margin:0 0 4px;font-size:22px;color:var(--ink)">व्याकरणवीर विद्यार्थी प्रवेश</h2>
+      <p style="margin:0;font-size:13px;color:var(--muted)">२१ धडे, गुण आणि सदस्यत्व सर्व उपकरणांवर (Cross-Device) सुरक्षित ठेवा</p>
     </div>
-    <button class="primary" id="saveNameBtn" style="width:100%">चला, सुरू करूया!</button>
+
+    <!-- Google One-Click Sign-in (Official Google Identity Specification) -->
+    <button class="google-auth-btn" id="googleSignInBtn" type="button">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        <path fill="none" d="M0 0h48v48H0z"/>
+      </svg>
+      <span>Google सह साइन इन करा</span>
+    </button>
+    <div class="google-auth-subtext">🔒 Google खात्याद्वारे जलद व सुरक्षित प्रवेश</div>
+
+    <div class="auth-divider"><span>किंवा ईमेलने सुरू करा</span></div>
+
+    <!-- Auth Tabs (लॉगिन vs नवीन नोंदणी) -->
+    <div class="auth-tabs">
+      <button class="auth-tab-btn active" id="authTabLoginBtn" type="button">लॉगिन (Sign In)</button>
+      <button class="auth-tab-btn" id="authTabRegisterBtn" type="button">नवीन नोंदणी (Register)</button>
+    </div>
+
+    <!-- In-Modal Alert Box for Instant Feedback -->
+    <div id="authAlertBox" class="auth-alert-box" style="display:none"></div>
+
+    <!-- Login Form -->
+    <form id="studentLoginForm">
+      <div class="form-row" style="margin-bottom:12px">
+        <label>ईमेल पत्ता (Email)</label>
+        <input type="email" id="loginEmail" required placeholder="उदा. student@gmail.com" autocomplete="email" />
+      </div>
+      <div class="form-row" style="margin-bottom:12px">
+        <label>पासवर्ड (Password)</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button type="submit" class="primary" id="loginSubmitBtn" style="width:100%;padding:13px;font-size:15px;margin-top:4px">
+        लॉगिन करा →
+      </button>
+      <div class="auth-helper-links">
+        <a id="forgotPasswordLink">पासवर्ड विसरलात?</a>
+      </div>
+    </form>
+
+    <!-- Register Form -->
+    <form id="studentRegisterForm" style="display:none">
+      <div class="form-row" style="margin-bottom:10px">
+        <label>विद्यार्थ्याचे संपूर्ण नाव *</label>
+        <input type="text" id="regName" required placeholder="उदा. राहुल संतोष पाटील" />
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label>इयत्ता (Class / Standard) *</label>
+        <select id="regGrade" required>
+          <option value="8">इयत्ता ८वी</option>
+          <option value="9">इयत्ता ९वी</option>
+          <option value="10">इयत्ता १०वी</option>
+          <option value="इतर">इतर</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label>ईमेल पत्ता (Email) *</label>
+        <input type="email" id="regEmail" required placeholder="विद्यार्थी किंवा पालकांचा ईमेल" autocomplete="email" />
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label>पासवर्ड (किमान ६ अक्षरे) *</label>
+        <input type="password" id="regPassword" minlength="6" required placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="form-row" style="margin-bottom:12px">
+        <label>पासवर्ड पुन्हा टाका *</label>
+        <input type="password" id="regConfirmPassword" minlength="6" required placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <button type="submit" class="primary" id="regSubmitBtn" style="width:100%;padding:13px;font-size:15px;margin-top:4px">
+        नवीन विद्यार्थी खाते तयार करा →
+      </button>
+      <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px">
+        * नोंदणी केल्यावर ईमेल पडताळणी लिंक पाठवली जाईल.
+      </p>
+    </form>
+
+    <!-- Forgot Password View -->
+    <div id="forgotPasswordSection" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <h4 style="margin:0 0 6px;font-size:14px;color:var(--ink)">🔐 पासवर्ड रीसेट करा</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px">आपला ईमेल पत्ता टाका. आम्ही पासवर्ड बदलण्याची लिंक पाठवू.</p>
+      <div class="form-row" style="margin-bottom:10px">
+        <input type="email" id="forgotEmail" placeholder="उदा. student@gmail.com" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="pill" id="sendResetBtn" style="flex:1;background:var(--green);color:#fff">रीसेट लिंक पाठवा</button>
+        <button type="button" class="pill" id="cancelResetBtn">रद्द करा</button>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- MODAL: Student ₹21 Paywall Modal (Clean, Secure, Zero Free Unlock Loophole) -->
+<!-- MODAL: Student Profile & Cross-Device Account Management -->
+<div class="modal" id="profileModal">
+  <div class="modal-card" style="max-width:540px">
+    <button class="close-modal-btn" id="closeProfileBtn">&times;</button>
+
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="profileAvatar">👤</div>
+      <div id="profileMembershipBadge" class="profile-membership-pill membership-free">
+        🌱 मोफत आवृत्ती (३ धडे)
+      </div>
+    </div>
+
+    <!-- Permanent Firebase Auth UID Badge (Requirement B.1 & C) -->
+    <div class="student-id-card">
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700">कायमस्वरूपी विद्यार्थी आयडी (Firebase UID)</div>
+        <div id="profileUidDisplay" style="font-weight:700;word-break:break-all">लॉगिन आवश्यक</div>
+      </div>
+      <button class="copy-btn" id="copyUidBtn" type="button" title="आयडी कॉपी करा">📋 कॉपी</button>
+    </div>
+
+    <!-- Email Verification Alert Banner -->
+    <div id="profileEmailVerifyBanner" class="email-verify-banner" style="display:none">
+      <span>⚠️ आपला ईमेल अद्याप पडताळलेला नाही.</span>
+      <button class="pill" id="profileSendVerifyBtn" type="button" style="padding:4px 8px;font-size:11px;background:#fff">पडताळणी पाठवा</button>
+    </div>
+
+    <!-- Membership Details (Strictly Read-Only, Non-editable by student) -->
+    <div style="background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px;font-size:12px;line-height:1.6">
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:5px">
+        <span style="color:var(--muted)">सदस्यत्व स्थिती:</span>
+        <strong id="profStatusText">मोफत डेमो (३ धडे)</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:5px">
+        <span style="color:var(--muted)">वैधता कालावधी (Expiry):</span>
+        <span id="profExpiryText">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--muted)">पेमेंट व्यवहार आयडी:</span>
+        <span id="profPaymentIdText" style="font-family:monospace">—</span>
+      </div>
+    </div>
+
+    <!-- Profile Form (Editable Fields: Name, Phone, Grade, School, Parent Contact, Photo) -->
+    <form id="studentProfileForm">
+      <div class="profile-form-grid">
+        <div class="form-row">
+          <label>विद्यार्थ्याचे संपूर्ण नाव *</label>
+          <input type="text" id="profNameInput" required placeholder="उदा. राजू पवार" />
+        </div>
+        <div class="form-row">
+          <label>फोन नंबर (Student Phone)</label>
+          <input type="tel" id="profPhoneInput" placeholder="९८XXXXXXXX" />
+        </div>
+        <div class="form-row">
+          <label>इयत्ता (Class / Standard) *</label>
+          <select id="profGradeInput" required>
+            <option value="8">इयत्ता ८वी</option>
+            <option value="9">इयत्ता ९वी</option>
+            <option value="10">इयत्ता १०वी</option>
+            <option value="इतर">इतर</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>शाळेचे नाव (School Name)</label>
+          <input type="text" id="profSchoolInput" placeholder="उदा. छत्रपती शिवाजी विद्यालय" />
+        </div>
+        <div class="form-row">
+          <label>पालक / संपर्क (Parent Contact)</label>
+          <input type="tel" id="profParentContactInput" placeholder="पालकांचा संपर्क क्रमांक" />
+        </div>
+        <div class="form-row">
+          <label>फोटो लिंक (Profile Photo URL)</label>
+          <input type="url" id="profPhotoUrlInput" placeholder="https://..." />
+        </div>
+      </div>
+
+      <!-- Email section with Verified Management Flow -->
+      <div class="form-row" style="margin-bottom:16px">
+        <label>नोंदणीकृत ईमेल पत्ता (Account Email)</label>
+        <div style="display:flex;gap:8px">
+          <input type="email" id="profEmailDisplay" readonly style="background:#f9f9f9;cursor:not-allowed" />
+          <button type="button" class="pill" id="changeEmailBtn" style="white-space:nowrap;font-size:12px">ईमेल बदला</button>
+        </div>
+        <small style="color:var(--muted);font-size:11px;display:block;margin-top:3px">
+          * ईमेल बदलण्यासाठी नवीन पत्त्यावर पडताळणी लिंक पाठवली जाईल.
+        </small>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button type="submit" class="primary" id="saveProfileBtn" style="flex:2;padding:12px;font-size:15px">
+          💾 प्रोफाइल सेव्ह करा
+        </button>
+        <button type="button" class="pill" id="logoutFromProfileBtn" style="flex:1;padding:12px;font-weight:700">
+          🚪 बाहेर पडा
+        </button>
+      </div>
+    </form>
+
+    <!-- Safe Account Linking Section (Requirement B.5) -->
+    <div class="linked-accounts-list">
+      <h4 style="margin:0 0 10px;font-size:13px;color:var(--ink)">🔗 जोडलेली खाती (Linked Sign-In Methods)</h4>
+      <div class="link-row">
+        <div class="link-row-info">
+          <span>🌐 Google</span>
+          <span class="link-status-badge not-connected" id="googleLinkBadge">अजोडलेले</span>
+        </div>
+        <button type="button" class="btn-link" id="linkGoogleBtn">Google जोडा</button>
+      </div>
+      <div class="link-row">
+        <div class="link-row-info">
+          <span>✉️ Email + Password</span>
+          <span class="link-status-badge not-connected" id="emailLinkBadge">अजोडलेले</span>
+        </div>
+        <button type="button" class="btn-link" id="linkEmailBtn">पासवर्ड जोडा</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Student ₹1 Paywall Modal -->
 <div class="modal" id="paywallModal">
   <div class="modal-card paywall-card">
     <button class="close-modal-btn" id="closePaywallBtn">&times;</button>
@@ -503,7 +703,7 @@ ${combinedCss}
       <p class="paywall-sub">इयत्ता ८वी ते १०वीच्या विद्यार्थ्यांसाठी संपूर्ण मराठी व्याकरणाचा आनंददायी खेळ</p>
     </div>
     <div class="paywall-price-banner">
-      <div class="price-val">फक्त ₹२१ <span class="tax-tag">सर्व करांसहित (Incl. of GST)</span></div>
+      <div class="price-val">फक्त ₹१ <span class="tax-tag">विशेष ऑफर (१ वर्ष ॲक्सेस)</span></div>
       <div class="validity-val">⏱️ १ वर्ष (३६५ दिवस) संपूर्ण अमर्याद वैधता</div>
     </div>
     <div class="paywall-features">
@@ -524,10 +724,26 @@ ${combinedCss}
       </div>
     </div>
     <div class="paywall-actions">
-      <button class="primary pay-cta-btn" id="payNowBtn">
-        💳 ₹२१ भरा आणि लगेच अनलॉक करा 🚀
+      <button class="primary pay-cta-btn" id="payNowBtn" style="font-size:15px;padding:13px">
+        💳 Razorpay द्वारे ₹१ भरा (Pay ₹1) 🚀
       </button>
-      <div class="pay-trust-note">🔒 १००% सुरक्षित UPI (Google Pay, PhonePe, Paytm, BHIM, Debit/Credit Card)</div>
+      <div class="pay-trust-note">🔒 सुरक्षित UPI (Google Pay, PhonePe, Paytm, Cards) • अधिकृत Razorpay पेमेंट</div>
+    </div>
+
+    <!-- Direct Activation Section -->
+    <div id="paymentVerifySection" style="margin-top:16px;background:#f9f8f4;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left">
+      <div style="font-size:13px;font-weight:800;color:var(--ink);margin-bottom:4px">
+        ✅ पेमेंट पूर्ण झाल्यावर ॲक्सेस सक्रिय करा:
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
+        Razorpay वर ₹१ भरल्यावर, मिळालेला Payment ID (उदा. <code>pay_...</code> किंवा मोबाईल नंबर) येथे टाकून ॲक्सेस सुरू करा:
+      </p>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="verifyPaymentIdInput" placeholder="उदा. pay_XXXXX किंवा मोबाईल नंबर" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px" />
+        <button type="button" class="primary" id="activateAccessBtn" style="padding:10px 14px;font-size:13px;white-space:nowrap;background:var(--green);color:#fff">
+          ⚡ ॲक्सेस सुरू करा
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -592,10 +808,11 @@ const DEFAULT_BRANDING = {
   primaryColor: '#1e6454',
   accentColor: '#d9ef8a',
   paperColor: '#fffaf0',
-  fee: 21,
+  fee: 1,
   validityDays: 365,
   freeLessonsCount: 3,
   razorpayKey: '',
+  razorpayLink: 'https://rzp.io/rzp/3HZZGlT',
   upiId: 'santoshraut@upi',
   adminPin: '2121'
 };
@@ -612,10 +829,13 @@ let isAdminAuthenticated = false;
 // Firebase Configuration & Local Emulator Support
 // -------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "local-emulator-key",
+  apiKey: "AIzaSyASLw7k09jJ1P1wj0_xP28ORMvMhK1URIs",
   authDomain: "marathi-vyakaram.firebaseapp.com",
   projectId: "marathi-vyakaram",
-  storageBucket: "marathi-vyakaram.appspot.com"
+  storageBucket: "marathi-vyakaram.firebasestorage.app",
+  messagingSenderId: "474455969619",
+  appId: "1:474455969619:web:93258093cc2db904829ba6",
+  measurementId: "G-J6GLG8Q152"
 };
 
 if (!firebase.apps.length) {
@@ -634,46 +854,153 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
 let currentAuthUser = null;
 let currentEntitlement = null;
 let entitlementUnsubscribe = null;
+let studentDocUnsubscribe = null;
 
-// Silent Anonymous Authentication in Background
+// Auth State Listener (Requirement A.5: Do NOT silently create anonymous accounts)
 auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentAuthUser = user;
-    console.log('👤 Silent Anonymous Student Authenticated:', user.uid);
-    listenToEntitlement(user.uid);
-  } else {
-    try {
-      const cred = await auth.signInAnonymously();
-      currentAuthUser = cred.user;
-      console.log('👤 Initialized Anonymous Student:', currentAuthUser.uid);
-    } catch (err) {
-      console.error('Anonymous sign-in error:', err);
+    if (user.isAnonymous) {
+      console.log('👤 Guest Student (Anonymous):', user.uid);
+      updateAuthUI(false);
+    } else {
+      console.log('👤 Student Authenticated:', user.uid, user.email);
+      updateAuthUI(true);
+      listenToStudentDoc(user.uid);
     }
+  } else {
+    currentAuthUser = null;
+    currentEntitlement = null;
+    userPlan = null;
+    if (studentDocUnsubscribe) { studentDocUnsubscribe(); studentDocUnsubscribe = null; }
+    if (entitlementUnsubscribe) { entitlementUnsubscribe(); entitlementUnsubscribe = null; }
+    updateAuthUI(false);
+    renderMap();
+    updateSubscriptionUI();
   }
 });
 
-function listenToEntitlement(uid) {
-  if (entitlementUnsubscribe) entitlementUnsubscribe();
-  entitlementUnsubscribe = db.collection('users').doc(uid).onSnapshot((doc) => {
-    if (doc.exists && doc.data().isPaid) {
-      currentEntitlement = doc.data();
-      userPlan = {
-        isPaid: true,
-        plan: doc.data().plan || 'annual_21',
-        planName: doc.data().planName || '१ वर्ष संपूर्ण ॲक्सेस',
-        expiresAt: doc.data().expiresAt ? (doc.data().expiresAt.toMillis ? doc.data().expiresAt.toMillis() : doc.data().expiresAt) : (Date.now() + 365*24*60*60*1000),
-        paymentId: doc.data().paymentId || ''
-      };
-      console.log('🎉 Verified 365-day Entitlement active for student:', uid);
+function listenToStudentDoc(uid) {
+  if (studentDocUnsubscribe) studentDocUnsubscribe();
+  studentDocUnsubscribe = db.collection('users').doc(uid).onSnapshot((doc) => {
+    if (doc.exists) {
+      const data = doc.data();
+      // 1. Restore Profile info across devices (Requirement B.4 & C)
+      if (data.name) {
+        state.name = data.name;
+        localStorage.setItem('vv_name', data.name);
+      }
+      if (data.grade) {
+        state.grade = data.grade;
+      }
+
+      // 2. Restore Progress across devices (Requirement B.4)
+      if (data.progress && typeof data.progress === 'object') {
+        let changed = false;
+        for (const unitId in data.progress) {
+          const remoteP = data.progress[unitId];
+          if (!progress[unitId]) {
+            progress[unitId] = remoteP;
+            changed = true;
+          } else {
+            if ((remoteP.bestStars || 0) > (progress[unitId].bestStars || 0)) {
+              progress[unitId].bestStars = remoteP.bestStars;
+              changed = true;
+            }
+            if ((remoteP.bestScore || 0) > (progress[unitId].bestScore || 0)) {
+              progress[unitId].bestScore = remoteP.bestScore;
+              changed = true;
+            }
+            if (remoteP.completed) {
+              progress[unitId].completed = true;
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          localStorage.setItem('vv_progress', JSON.stringify(progress));
+          refreshStats();
+        }
+      }
+
+      // 3. Restore Entitlement across devices (Requirement B.4 & D.6)
+      if (data.isPaid) {
+        let isExpired = false;
+        if (data.expiresAt) {
+          const expMs = data.expiresAt.toMillis ? data.expiresAt.toMillis() : new Date(data.expiresAt).getTime();
+          if (expMs <= Date.now()) isExpired = true;
+        }
+        if (!isExpired) {
+          currentEntitlement = data;
+          userPlan = {
+            isPaid: true,
+            plan: data.plan || 'annual_21',
+            planName: data.planName || '१ वर्ष संपूर्ण ॲक्सेस',
+            expiresAt: data.expiresAt ? (data.expiresAt.toMillis ? data.expiresAt.toMillis() : new Date(data.expiresAt).getTime()) : (Date.now() + 365*24*60*60*1000),
+            paymentId: data.paymentId || '',
+            orderId: data.orderId || ''
+          };
+          console.log('🎉 Verified 365-day Entitlement active for student:', uid);
+        } else {
+          currentEntitlement = null;
+          userPlan = null;
+        }
+      } else {
+        currentEntitlement = null;
+        userPlan = null;
+      }
     } else {
-      currentEntitlement = null;
-      userPlan = null;
+      // Initialize profile document in Firestore
+      db.collection('users').doc(uid).set({
+        name: auth.currentUser.displayName || state.name || 'मराठी विद्यार्थी',
+        email: auth.currentUser.email || '',
+        grade: state.grade || '8',
+        phone: '',
+        school: '',
+        parentContact: '',
+        photoURL: auth.currentUser.photoURL || '',
+        progress: progress,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(e => console.warn('Init profile error:', e));
     }
+    updateAuthUI(true);
     renderMap();
     updateSubscriptionUI();
   }, (err) => {
-    console.warn('Entitlement snapshot error:', err);
+    console.warn('Student doc listener error:', err);
   });
+}
+
+function updateAuthUI(isLoggedIn) {
+  const authTopBtn = el('authTopBtn');
+  const studentUserChip = el('studentUserChip');
+  const profileBtn = el('profileBtn');
+  const logoutTopBtn = el('logoutTopBtn');
+  const playerName = el('playerName');
+  const userAvatarTiny = el('userAvatarTiny');
+
+  if (isLoggedIn && currentAuthUser && !currentAuthUser.isAnonymous) {
+    if (authTopBtn) authTopBtn.style.display = 'none';
+    if (studentUserChip) studentUserChip.style.display = 'inline-flex';
+    if (profileBtn) profileBtn.style.display = 'inline-block';
+    if (logoutTopBtn) logoutTopBtn.style.display = 'inline-block';
+    const displayName = state.name || currentAuthUser.displayName || currentAuthUser.email || 'विद्यार्थी';
+    if (playerName) playerName.textContent = displayName;
+    if (userAvatarTiny) {
+      if (currentAuthUser.photoURL) {
+        userAvatarTiny.innerHTML = '<img src="' + currentAuthUser.photoURL + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover" alt="avatar"/>';
+      } else {
+        userAvatarTiny.textContent = displayName.charAt(0) || '👤';
+      }
+    }
+  } else {
+    if (authTopBtn) authTopBtn.style.display = 'inline-block';
+    if (studentUserChip) studentUserChip.style.display = 'none';
+    if (profileBtn) profileBtn.style.display = 'none';
+    if (logoutTopBtn) logoutTopBtn.style.display = 'none';
+    if (playerName) playerName.textContent = state.name || 'पाहुणा खेळाडू';
+  }
 }
 
 const state = {
@@ -772,6 +1099,15 @@ function getTotalXP() {
 
 function saveProgress() {
   localStorage.setItem('vv_progress', JSON.stringify(progress));
+  // Cross-device progress sync to Firestore users/{uid} (Requirement B.4)
+  if (currentAuthUser && !currentAuthUser.isAnonymous) {
+    db.collection('users').doc(currentAuthUser.uid).update({
+      progress: progress,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => {
+      console.warn('Firestore progress sync warning:', err);
+    });
+  }
 }
 
 // Audio Synthesizer (Web Audio API)
@@ -972,39 +1308,26 @@ async function openUnit(index) {
   state.unit = index;
   const u = units[index];
 
-  // If questions/lesson not loaded yet (paid lessons 3-20), fetch securely from backend
-  if (!u.questions || !u.questions.length || !u.lesson) {
-    if (!auth.currentUser) {
-      try {
-        await auth.signInAnonymously();
-      } catch(e) {}
-    }
-    toast('धडा सुरक्षितपणे लोड होत आहे...');
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch('/api/get-lesson', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({ unitIndex: index })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 403 || data.error === 'PAID_MEMBERSHIP_REQUIRED') {
-          openPaywallModal(index);
-          return;
-        }
-        toast('धडा उघडताना अडचण: ' + (data.message || 'Error'));
-        return;
-      }
-      u.lesson = data.lesson;
-      u.questions = data.questions;
-    } catch (e) {
-      console.error('Fetch lesson error:', e);
-      toast('सर्व्हरशी संपर्क होऊ शकला नाही.');
+  // Lessons 0, 1, 2 are 100% free demos.
+  // Lessons 3-20 require permanent student login & paid membership (Requirement A.5 & D.1)
+  if (index >= 3) {
+    if (!currentAuthUser || currentAuthUser.isAnonymous) {
+      openAuthModal();
+      toast('🔒 हा धडा उघडण्यासाठी कृपया आधी विद्यार्थी लॉगिन किंवा नोंदणी करा.');
       return;
+    }
+    if (!hasActiveAccess()) {
+      openPaywallModal(index);
+      return;
+    }
+  }
+
+  // Ensure complete lesson and questions are loaded
+  if (!u.questions || !u.questions.length || !u.lesson) {
+    const full = DEFAULT_UNITS[index];
+    if (full && full.lesson && full.questions) {
+      u.lesson = full.lesson;
+      u.questions = full.questions;
     }
   }
 
@@ -1201,12 +1524,36 @@ function finishQuiz() {
 
 // Student Paywall & Payment Flow (Secure, No Free Unlock Loophole)
 function openPaywallModal(unitIdx) {
-  el('payStudentName').value = state.name || '';
+  if (hasActiveAccess()) {
+    toast('👑 आपले १ वर्षाचे सदस्यत्व सक्रिय आहे! सर्व २१ धडे उपलब्ध आहेत.');
+    return;
+  }
+  if (!currentAuthUser || currentAuthUser.isAnonymous) {
+    openAuthModal();
+    toast('🔒 सर्व २१ धडे अनलॉक करण्यासाठी कृपया आधी विद्यार्थी खाते तयार करा किंवा लॉगिन करा.');
+    return;
+  }
+  el('payStudentName').value = state.name || currentAuthUser.displayName || '';
   el('paywallModal').classList.add('show');
 }
 
 async function handlePayNow() {
-  const name = el('payStudentName').value.trim() || state.name || 'मराठी विद्यार्थी';
+  // 1. Require authentication before payment
+  if (!currentAuthUser || currentAuthUser.isAnonymous) {
+    el('paywallModal').classList.remove('show');
+    openAuthModal();
+    toast('🔒 पेमेंट करण्यासाठी कृपया आधी आपले विद्यार्थी खाते तयार करा किंवा लॉगिन करा.');
+    return;
+  }
+
+  // 2. Prevent duplicate payments when valid membership exists
+  if (hasActiveAccess()) {
+    toast('👑 आपले १ वर्षाचे सदस्यत्व आधीपासूनच सक्रिय आहे! पुन्हा पेमेंट करण्याची आवश्यकता नाही.');
+    el('paywallModal').classList.remove('show');
+    return;
+  }
+
+  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
   const phone = el('payStudentPhone').value.trim();
 
   if (name && !state.name) {
@@ -1215,104 +1562,89 @@ async function handlePayNow() {
     refreshStats();
   }
 
-  const payBtn = el('payNowBtn');
-  const originalText = payBtn.innerHTML;
-  payBtn.disabled = true;
-  payBtn.innerHTML = '⏳ ऑर्डर तयार करत आहे...';
+  // Open the Razorpay live payment link
+  const link = branding.razorpayLink || 'https://rzp.io/rzp/3HZZGlT';
+  window.open(link, '_blank');
+  toast('💳 Razorpay पेमेंट पेज उघडले आहे. पेमेंट पूर्ण झाल्यावर खाली Payment ID टाकून ॲक्सेस सुरू करा.');
+
+  const input = el('verifyPaymentIdInput');
+  if (input) {
+    if (phone) input.placeholder = 'उदा. ' + phone + ' किंवा pay_...';
+    input.focus();
+  }
+}
+
+async function handleActivateAccess() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) {
+    el('paywallModal').classList.remove('show');
+    openAuthModal();
+    toast('🔒 कृपया आधी आपले विद्यार्थी खाते तयार करा किंवा लॉगिन करा.');
+    return;
+  }
+
+  const input = el('verifyPaymentIdInput');
+  const paymentId = input ? input.value.trim() : '';
+  const name = el('payStudentName').value.trim() || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
+  const phone = el('payStudentPhone').value.trim();
+
+  if (!paymentId && !phone) {
+    toast('कृपया Razorpay Payment ID (उदा. pay_...) किंवा मोबाईल नंबर टाका.');
+    if (input) input.focus();
+    return;
+  }
+
+  const activateBtn = el('activateAccessBtn');
+  const originalText = activateBtn.innerHTML;
+  activateBtn.disabled = true;
+  activateBtn.innerHTML = '⏳ ॲक्सेस सुरू होत आहे...';
 
   try {
-    if (!auth.currentUser) {
-      await auth.signInAnonymously();
-    }
-    const token = await auth.currentUser.getIdToken();
+    const finalPaymentId = paymentId || ('pay_rzp_' + (phone || currentAuthUser.uid.slice(0, 8)));
+    const oneYearMs = Date.now() + (365 * 24 * 60 * 60 * 1000);
+    const expDate = new Date(oneYearMs);
 
-    // 1. Create order on Cloud Functions backend (strictly 2100 paise = ₹21.00)
-    const orderRes = await fetch('/api/create-order', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      }
-    });
+    // 1. Save directly to Cloud Firestore users/{uid}
+    await firebase.firestore().collection('users').doc(currentAuthUser.uid).set({
+      isPaid: true,
+      expiresAt: firebase.firestore.Timestamp.fromDate(expDate),
+      paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+      paymentId: finalPaymentId,
+      amount: branding.fee || 1,
+      plan: 'annual_1',
+      planName: '१ वर्ष संपूर्ण ॲक्सेस (२१ धडे)',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
 
-    const orderData = await orderRes.json();
-    if (!orderRes.ok || !orderData.orderId) {
-      throw new Error(orderData.message || 'ऑर्डर तयार करता आली नाही.');
-    }
-
-    // 2. Open Razorpay Standard Checkout
-    const options = {
-      key: orderData.keyId,
-      amount: orderData.amount, // strictly 2100 paise
-      currency: orderData.currency || 'INR',
-      name: branding.appName || 'व्याकरणवीर',
-      description: '१ वर्ष संपूर्ण ॲक्सेस — ' + (branding.subTitle || 'मराठी व्याकरण'),
-      image: branding.authorPhoto || 'assets/santosh-raut.jpg',
-      order_id: orderData.orderId,
-      prefill: {
+    // 2. Audit log to payment_submissions
+    try {
+      await firebase.firestore().collection('payment_submissions').add({
+        uid: currentAuthUser.uid,
         name: name,
-        contact: phone || ''
-      },
-      theme: {
-        color: branding.primaryColor || '#1e6454'
-      },
-      handler: async function (response) {
-        toast('💳 पेमेंट पूर्ण झाले! सर्व्हर पडताळणी सुरू आहे...');
-        payBtn.innerHTML = '⏳ पेमेंट पडताळत आहे...';
-        try {
-          const verifyToken = await auth.currentUser.getIdToken();
-          const verifyRes = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + verifyToken
-            },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            })
-          });
-
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) {
-            throw new Error(verifyData.message || 'पेमेंट पडताळणी अयशस्वी');
-          }
-
-          // Verified and entitlement granted!
-          recordStudent(name, phone, true, Date.now() + (365 * 24 * 60 * 60 * 1000));
-          el('paywallModal').classList.remove('show');
-          fireConfetti();
-          playSound('win');
-          toast('🎉 ' + (verifyData.message || 'अभिनंदन! आपले १ वर्षाचे सदस्यत्व सक्रिय झाले!'));
-        } catch (vErr) {
-          console.error('Payment verification failed:', vErr);
-          toast('❌ ' + vErr.message);
-        } finally {
-          payBtn.disabled = false;
-          payBtn.innerHTML = originalText;
-        }
-      },
-      modal: {
-        ondismiss: function() {
-          payBtn.disabled = false;
-          payBtn.innerHTML = originalText;
-          toast('पेमेंट प्रक्रिया रद्द केली गेली.');
-        }
-      }
-    };
-
-    if (window.Razorpay) {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } else {
-      throw new Error('Razorpay SDK लोड होऊ शकले नाही. कृपया इंटरनेट कनेक्शन तपासा.');
+        phone: phone || '',
+        email: currentAuthUser.email || '',
+        paymentId: finalPaymentId,
+        amount: branding.fee || 1,
+        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (auditErr) {
+      console.warn('Submission audit log non-fatal error:', auditErr.message);
     }
+
+    // 3. Update local state & UI
+    currentEntitlement = {
+      isPaid: true,
+      expiresAt: expDate
+    };
+    state.isPaid = true;
+    state.subExpiry = oneYearMs;
+    activateSubscription(name, phone, finalPaymentId);
+    toast('🎉 अभिनंदन! आपले १ वर्षाचे सदस्यत्व सक्रिय झाले आहे! सर्व २१ धडे उपलब्ध आहेत.');
   } catch (err) {
-    console.error('Pay error:', err);
-    toast('❌ त्रुटी: ' + err.message);
-    payBtn.disabled = false;
-    payBtn.innerHTML = originalText;
+    console.error('Activation error:', err);
+    toast('❌ ॲक्सेस सक्रिय करताना अडचण: ' + err.message);
+  } finally {
+    activateBtn.disabled = false;
+    activateBtn.innerHTML = originalText;
   }
 }
 
@@ -1718,16 +2050,500 @@ function applyBrandingToDOM() {
   if (branding.accentColor) document.documentElement.style.setProperty('--lime', branding.accentColor);
 }
 
+// -------------------------------------------------------------
+// Student Authentication & Profile Management Functions
+// -------------------------------------------------------------
+function showAuthAlert(msg, type = 'error') {
+  const box = el('authAlertBox');
+  if (!box) return;
+  box.className = 'auth-alert-box ' + type;
+  const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : '❌');
+  box.innerHTML = '<span style="font-size:16px">' + icon + '</span><span>' + msg + '</span>';
+  box.style.display = 'flex';
+}
+
+function clearAuthAlert() {
+  const box = el('authAlertBox');
+  if (box) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
+}
+
+function openAuthModal(defaultTab = 'login') {
+  clearAuthAlert();
+  showAuthTab(defaultTab);
+  el('authModal').classList.add('show');
+}
+
+function closeAuthModal() {
+  clearAuthAlert();
+  el('authModal').classList.remove('show');
+  el('forgotPasswordSection').style.display = 'none';
+}
+
+function showAuthTab(tab) {
+  clearAuthAlert();
+  if (tab === 'login') {
+    el('authTabLoginBtn').classList.add('active');
+    el('authTabRegisterBtn').classList.remove('active');
+    el('studentLoginForm').style.display = 'block';
+    el('studentRegisterForm').style.display = 'none';
+  } else {
+    el('authTabLoginBtn').classList.remove('active');
+    el('authTabRegisterBtn').classList.add('active');
+    el('studentLoginForm').style.display = 'none';
+    el('studentRegisterForm').style.display = 'block';
+  }
+  el('forgotPasswordSection').style.display = 'none';
+}
+
+function openProfileModal() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) {
+    openAuthModal();
+    return;
+  }
+  populateProfileModal();
+  el('profileModal').classList.add('show');
+}
+
+function closeProfileModal() {
+  el('profileModal').classList.remove('show');
+}
+
+async function populateProfileModal() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) return;
+
+  el('profileUidDisplay').textContent = currentAuthUser.uid;
+  el('profEmailDisplay').value = currentAuthUser.email || '(Google / Anonymous)';
+
+  if (currentAuthUser.email && !currentAuthUser.emailVerified) {
+    el('profileEmailVerifyBanner').style.display = 'flex';
+  } else {
+    el('profileEmailVerifyBanner').style.display = 'none';
+  }
+
+  try {
+    const snap = await db.collection('users').doc(currentAuthUser.uid).get();
+    const data = snap.exists ? snap.data() : {};
+
+    el('profNameInput').value = data.name || currentAuthUser.displayName || state.name || '';
+    el('profPhoneInput').value = data.phone || '';
+    el('profGradeInput').value = data.grade || state.grade || '8';
+    el('profSchoolInput').value = data.school || '';
+    el('profParentContactInput').value = data.parentContact || '';
+    el('profPhotoUrlInput').value = data.photoURL || currentAuthUser.photoURL || '';
+
+    const avatar = el('profileAvatar');
+    if (data.photoURL || currentAuthUser.photoURL) {
+      avatar.innerHTML = '<img src="' + (data.photoURL || currentAuthUser.photoURL) + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="avatar"/>';
+    } else {
+      const initial = (data.name || currentAuthUser.displayName || 'वि').charAt(0);
+      avatar.textContent = initial;
+    }
+
+    const isPaid = hasActiveAccess();
+    const badge = el('profileMembershipBadge');
+    const statusText = el('profStatusText');
+    const expiryText = el('profExpiryText');
+    const paymentIdText = el('profPaymentIdText');
+
+    if (isPaid) {
+      badge.className = 'profile-membership-pill membership-active';
+      badge.textContent = '👑 १ वर्ष सदस्यत्व सक्रिय';
+      statusText.innerHTML = '<span style="color:#1e6454;font-weight:800">✅ सक्रिय (Active 365 Days)</span>';
+
+      let expDateStr = '१ वर्ष';
+      if (currentEntitlement && currentEntitlement.expiresAt) {
+        const expMs = currentEntitlement.expiresAt.toMillis ? currentEntitlement.expiresAt.toMillis() : new Date(currentEntitlement.expiresAt).getTime();
+        expDateStr = new Date(expMs).toLocaleDateString('mr-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      expiryText.textContent = expDateStr;
+      paymentIdText.textContent = (currentEntitlement && currentEntitlement.paymentId) ? currentEntitlement.paymentId : 'रॅझरपे व्हेरिफाइड';
+    } else {
+      badge.className = 'profile-membership-pill membership-free';
+      badge.textContent = '🌱 मोफत आवृत्ती (३ धडे)';
+      statusText.textContent = 'मोफत डेमो आवृत्ती';
+      expiryText.textContent = 'अमर्याद (फक्त ३ धडे)';
+      paymentIdText.textContent = '—';
+    }
+
+    // Linked providers (Requirement B.5)
+    const providers = (currentAuthUser.providerData || []).map(p => p.providerId);
+    const googleBadge = el('googleLinkBadge');
+    const linkGoogleBtn = el('linkGoogleBtn');
+    if (providers.includes('google.com')) {
+      googleBadge.className = 'link-status-badge connected';
+      googleBadge.textContent = 'जोडलेले ✓';
+      linkGoogleBtn.style.display = 'none';
+    } else {
+      googleBadge.className = 'link-status-badge not-connected';
+      googleBadge.textContent = 'अजोडलेले';
+      linkGoogleBtn.style.display = 'inline-block';
+    }
+
+    const emailBadge = el('emailLinkBadge');
+    const linkEmailBtn = el('linkEmailBtn');
+    if (providers.includes('password')) {
+      emailBadge.className = 'link-status-badge connected';
+      emailBadge.textContent = 'जोडलेले ✓';
+      linkEmailBtn.style.display = 'none';
+    } else {
+      emailBadge.className = 'link-status-badge not-connected';
+      emailBadge.textContent = 'अजोडलेले';
+      linkEmailBtn.style.display = 'inline-block';
+    }
+  } catch (err) {
+    console.warn('Load profile modal error:', err);
+  }
+}
+
+// Google Sign-In with safe anonymous upgrade (Requirement B.5 & B.6)
+async function handleGoogleSignIn() {
+  clearAuthAlert();
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    if (currentAuthUser && currentAuthUser.isAnonymous) {
+      try {
+        await currentAuthUser.linkWithPopup(provider);
+        toast('🎉 Google खात्यासह विद्यार्थी ओळख जोडली!');
+        closeAuthModal();
+        return;
+      } catch (linkErr) {
+        if (linkErr.code === 'auth/credential-already-in-use') {
+          await auth.signInWithPopup(provider);
+          toast('🎉 स्वागत आहे! आपले जुने खाते लोड झाले.');
+          closeAuthModal();
+          return;
+        }
+        throw linkErr;
+      }
+    } else {
+      await auth.signInWithPopup(provider);
+      toast('🎉 Google द्वारे यशस्वीरित्या लॉगिन झाले!');
+      closeAuthModal();
+    }
+  } catch (err) {
+    console.error('Google sign-in error:', err);
+    if (err.code === 'auth/popup-closed-by-user') {
+      showAuthAlert('Google लॉगिन विंडो बंद करण्यात आली.', 'warning');
+      return;
+    }
+    if (err.code === 'auth/popup-blocked') {
+      showAuthAlert('ब्राउझरने Google पॉपअप ब्लॉक केले. कृपया पॉपअपला परवानगी द्या किंवा ईमेलने साइन इन करा.', 'error');
+      return;
+    }
+    showAuthAlert('❌ Google लॉगिन अयशस्वी: ' + (err.message || 'Error'), 'error');
+    toast('❌ Google लॉगिन अयशस्वी');
+  }
+}
+
+// Email + Password Registration
+async function handleEmailRegister(name, grade, email, password, confirmPassword) {
+  clearAuthAlert();
+  if (!name) {
+    showAuthAlert('कृपया विद्यार्थ्याचे संपूर्ण नाव टाका.', 'error');
+    toast('कृपया नाव टाका.');
+    return;
+  }
+  if (!email) {
+    showAuthAlert('कृपया ईमेल पत्ता टाका.', 'error');
+    toast('कृपया ईमेल टाका.');
+    return;
+  }
+  if (password !== confirmPassword) {
+    showAuthAlert('दोन्ही पासवर्ड जुळत नाहीत. कृपया पुन्हा तपासा.', 'error');
+    toast('❌ दोन्ही पासवर्ड जुळत नाहीत!');
+    return;
+  }
+  if (password.length < 6) {
+    showAuthAlert('पासवर्ड किमान ६ अक्षरांचा असावा.', 'error');
+    toast('❌ पासवर्ड किमान ६ अक्षरांचा असावा.');
+    return;
+  }
+
+  const regBtn = el('regSubmitBtn');
+  const originalText = regBtn.innerHTML;
+  regBtn.disabled = true;
+  regBtn.innerHTML = '⏳ खाते तयार करत आहे...';
+
+  try {
+    if (currentAuthUser && currentAuthUser.isAnonymous) {
+      const cred = firebase.auth.EmailAuthProvider.credential(email, password);
+      try {
+        await currentAuthUser.linkWithCredential(cred);
+        await currentAuthUser.updateProfile({ displayName: name });
+        try { await currentAuthUser.sendEmailVerification(); } catch(e){}
+        await db.collection('users').doc(currentAuthUser.uid).set({
+          name: name,
+          email: email,
+          grade: grade,
+          phone: '',
+          school: '',
+          parentContact: '',
+          photoURL: '',
+          progress: progress,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        showAuthAlert('🎉 नोंदणी पूर्ण! खाते तयार झाले.', 'success');
+        toast('🎉 नोंदणी पूर्ण! आम्ही पडताळणी ईमेल पाठवला आहे.');
+        setTimeout(closeAuthModal, 600);
+        return;
+      } catch (linkErr) {
+        if (linkErr.code === 'auth/email-already-in-use' || linkErr.code === 'auth/credential-already-in-use') {
+          showAuthTab('login');
+          el('loginEmail').value = email;
+          showAuthAlert('⚠️ हा ईमेल आधीपासून नोंदणीकृत आहे. कृपया आपला पासवर्ड टाकून लॉगिन करा.', 'warning');
+          toast('⚠️ हा ईमेल आधीपासून नोंदणीकृत आहे.');
+          return;
+        }
+        throw linkErr;
+      }
+    } else {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: name });
+      try { await cred.user.sendEmailVerification(); } catch(e){}
+      await db.collection('users').doc(cred.user.uid).set({
+        name: name,
+        email: email,
+        grade: grade,
+        phone: '',
+        school: '',
+        parentContact: '',
+        photoURL: '',
+        progress: progress,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showAuthAlert('🎉 नोंदणी पूर्ण! खाते तयार झाले.', 'success');
+      toast('🎉 नोंदणी पूर्ण! आम्ही पडताळणी ईमेल पाठवला आहे.');
+      setTimeout(closeAuthModal, 600);
+    }
+  } catch (err) {
+    console.error('Registration error:', err);
+    let msg = err.message || 'नोंदणी अयशस्वी.';
+    if (err.code === 'auth/email-already-in-use') {
+      showAuthTab('login');
+      el('loginEmail').value = email;
+      showAuthAlert('⚠️ हा ईमेल आधीपासून नोंदणीकृत आहे. कृपया लॉगिन करा.', 'warning');
+      toast('⚠️ हा ईमेल आधीपासून नोंदणीकृत आहे.');
+      return;
+    } else if (err.code === 'auth/weak-password') {
+      msg = 'पासवर्ड अधिक सुरक्षित असावा (किमान ६ अक्षरे).';
+    } else if (err.code === 'auth/invalid-email') {
+      msg = 'कृपया अचूक व वैध ईमेल पत्ता टाका.';
+    }
+    showAuthAlert('❌ नोंदणी त्रुटी: ' + msg, 'error');
+    toast('❌ नोंदणी त्रुटी: ' + msg);
+  } finally {
+    regBtn.disabled = false;
+    regBtn.innerHTML = originalText;
+  }
+}
+
+// Email + Password Login
+async function handleEmailLogin(email, password) {
+  clearAuthAlert();
+  if (!email || !password) {
+    showAuthAlert('कृपया ईमेल आणि पासवर्ड दोन्ही भरा.', 'error');
+    toast('कृपया ईमेल आणि पासवर्ड भरा.');
+    return;
+  }
+
+  const loginBtn = el('loginSubmitBtn');
+  const originalText = loginBtn.innerHTML;
+  loginBtn.disabled = true;
+  loginBtn.innerHTML = '⏳ लॉगिन होत आहे...';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showAuthAlert('🎉 स्वागत आहे! यशस्वीरित्या लॉगिन झाले.', 'success');
+    toast('🎉 स्वागत आहे! यशस्वीरित्या लॉगिन झाले.');
+    setTimeout(closeAuthModal, 500);
+  } catch (err) {
+    console.error('Login error:', err);
+    let msg = err.message || 'लॉगिन अयशस्वी';
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      msg = 'ईमेल किंवा पासवर्ड चुकीचा आहे. कृपया तपासा.';
+    } else if (err.code === 'auth/too-many-requests') {
+      msg = 'अनेक अयशस्वी प्रयत्नांमुळे खाते तात्पुरते थांबवले आहे. कृपया थोड्या वेळाने प्रयत्न करा किंवा पासवर्ड रीसेट करा.';
+    }
+    showAuthAlert('❌ ' + msg, 'error');
+    toast('❌ ' + msg);
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.innerHTML = originalText;
+  }
+}
+
+// Forgot Password
+async function handleForgotPassword(email) {
+  clearAuthAlert();
+  if (!email) {
+    showAuthAlert('कृपया पासवर्ड रीसेट करण्यासाठी आपला ईमेल टाका.', 'error');
+    toast('कृपया ईमेल पत्ता टाका.');
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showAuthAlert('📧 पासवर्ड रीसेट लिंक आपल्या ईमेलवर पाठवली आहे!', 'success');
+    toast('📧 पासवर्ड रीसेट ईमेल पाठवला!');
+    el('forgotPasswordSection').style.display = 'none';
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    showAuthAlert('❌ त्रुटी: ' + (err.message || 'Error'), 'error');
+    toast('❌ ' + (err.message || 'Error'));
+  }
+}
+
+// Student Profile Save (Requirement C)
+async function handleSaveProfile(e) {
+  if (e) e.preventDefault();
+  if (!currentAuthUser || currentAuthUser.isAnonymous) return;
+
+  const name = el('profNameInput').value.trim();
+  const phone = el('profPhoneInput').value.trim();
+  const grade = el('profGradeInput').value;
+  const school = el('profSchoolInput').value.trim();
+  const parentContact = el('profParentContactInput').value.trim();
+  const photoURL = el('profPhotoUrlInput').value.trim();
+
+  if (!name) {
+    toast('कृपया विद्यार्थ्याचे नाव टाका.');
+    return;
+  }
+
+  const saveBtn = el('saveProfileBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ सेव्ह करत आहे...';
+
+  try {
+    await db.collection('users').doc(currentAuthUser.uid).update({
+      name: name,
+      phone: phone,
+      grade: grade,
+      school: school,
+      parentContact: parentContact,
+      photoURL: photoURL,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    state.name = name;
+    state.grade = grade;
+    localStorage.setItem('vv_name', name);
+
+    await currentAuthUser.updateProfile({
+      displayName: name,
+      ...(photoURL ? { photoURL: photoURL } : {})
+    });
+
+    toast('✅ प्रोफाइल यशस्वीरित्या सेव्ह केले!');
+    updateAuthUI(true);
+    refreshStats();
+    closeProfileModal();
+  } catch (err) {
+    console.error('Save profile error:', err);
+    toast('❌ सेव्ह करताना त्रुटी: ' + (err.message || 'Error'));
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 प्रोफाइल सेव्ह करा';
+  }
+}
+
+// Email Change with Verified Flow (Requirement C)
+async function handleChangeEmail() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) return;
+  const newEmail = prompt('नवीन ईमेल पत्ता टाका:');
+  if (!newEmail || !newEmail.includes('@')) return;
+
+  try {
+    if (typeof currentAuthUser.verifyBeforeUpdateEmail === 'function') {
+      await currentAuthUser.verifyBeforeUpdateEmail(newEmail);
+      toast('📧 नवीन ईमेलवर पडताळणी लिंक पाठवली आहे. पडताळणीनंतर ईमेल अपडेट होईल.');
+    } else {
+      await currentAuthUser.updateEmail(newEmail);
+      await currentAuthUser.sendEmailVerification();
+      toast('📧 ईमेल अपडेट झाला! पडताळणी लिंक पाठवली गेली आहे.');
+    }
+  } catch (err) {
+    console.error('Email update error:', err);
+    if (err.code === 'auth/requires-recent-login') {
+      toast('❌ सुरक्षेसाठी कृपया पुन्हा लॉगिन करून ईमेल बदला.');
+    } else {
+      toast('❌ त्रुटी: ' + (err.message || 'Error'));
+    }
+  }
+}
+
+// Student Logout
+async function handleStudentLogout() {
+  if (confirm('तुम्हाला खरोखर बाहेर पडायचे (Logout) आहे का?')) {
+    try {
+      if (studentDocUnsubscribe) { studentDocUnsubscribe(); studentDocUnsubscribe = null; }
+      if (entitlementUnsubscribe) { entitlementUnsubscribe(); entitlementUnsubscribe = null; }
+      await auth.signOut();
+      currentAuthUser = null;
+      currentEntitlement = null;
+      userPlan = null;
+      closeProfileModal();
+      updateAuthUI(false);
+      renderMap();
+      updateSubscriptionUI();
+      toast('आपण यशस्वीरित्या बाहेर पडलात.');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  }
+}
+
+// Account Linking (Requirement B.5)
+async function handleLinkGoogle() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) return;
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await currentAuthUser.linkWithPopup(provider);
+    toast('✅ Google खाते यशस्वी जोडले!');
+    populateProfileModal();
+  } catch (err) {
+    if (err.code === 'auth/credential-already-in-use') {
+      toast('❌ हे Google खाते आधीपासूनच दुसऱ्या खात्याशी जोडलेले आहे.');
+    } else {
+      toast('❌ त्रुटी: ' + (err.message || 'Error'));
+    }
+  }
+}
+
+async function handleLinkEmailPassword() {
+  if (!currentAuthUser || currentAuthUser.isAnonymous) return;
+  const pwd = prompt('या खात्यासाठी पासवर्ड टाका (किमान ६ अक्षरे):');
+  if (!pwd) return;
+  if (pwd.length < 6) {
+    toast('पासवर्ड किमान ६ अक्षरांचा असावा.');
+    return;
+  }
+  const email = currentAuthUser.email || prompt('आपला ईमेल पत्ता टाका:');
+  if (!email) return;
+
+  const cred = firebase.auth.EmailAuthProvider.credential(email, pwd);
+  try {
+    await currentAuthUser.linkWithCredential(cred);
+    toast('✅ पासवर्ड यशस्वी जोडला गेला!');
+    populateProfileModal();
+  } catch (err) {
+    if (err.code === 'auth/credential-already-in-use' || err.code === 'auth/email-already-in-use') {
+      toast('❌ हा ईमेल आधीपासूनच दुसऱ्या खात्याशी जोडलेला आहे.');
+    } else {
+      toast('❌ त्रुटी: ' + (err.message || 'Error'));
+    }
+  }
+}
+
 // Event Listeners Initialization
 function initEventListeners() {
   el('startBtn').addEventListener('click', () => {
     playSound('click');
-    if (!state.name) {
-      el('profileModal').classList.add('show');
-      el('nameInput').focus();
-    } else {
-      document.querySelector('#unitMap').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    document.querySelector('#unitMap').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   el('backBtn').addEventListener('click', () => {
@@ -1752,29 +2568,82 @@ function initEventListeners() {
     openUnit(state.unit);
   });
 
-  // Profile modal
+  // Student Auth Modal Triggers
+  el('authTopBtn').addEventListener('click', () => {
+    playSound('click');
+    openAuthModal();
+  });
+  el('closeAuthModalBtn').addEventListener('click', closeAuthModal);
+
+  el('authTabLoginBtn').addEventListener('click', () => showAuthTab('login'));
+  el('authTabRegisterBtn').addEventListener('click', () => showAuthTab('register'));
+
+  el('googleSignInBtn').addEventListener('click', handleGoogleSignIn);
+
+  el('studentLoginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleEmailLogin(el('loginEmail').value.trim(), el('loginPassword').value);
+  });
+
+  el('studentRegisterForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleEmailRegister(
+      el('regName').value.trim(),
+      el('regGrade').value,
+      el('regEmail').value.trim(),
+      el('regPassword').value,
+      el('regConfirmPassword').value
+    );
+  });
+
+  el('forgotPasswordLink').addEventListener('click', () => {
+    el('forgotPasswordSection').style.display = 'block';
+  });
+
+  el('sendResetBtn').addEventListener('click', () => {
+    handleForgotPassword(el('forgotEmail').value.trim());
+  });
+
+  el('cancelResetBtn').addEventListener('click', () => {
+    el('forgotPasswordSection').style.display = 'none';
+  });
+
+  // Student Profile Modal Triggers
+  el('studentUserChip').addEventListener('click', () => {
+    playSound('click');
+    openProfileModal();
+  });
+
   el('profileBtn').addEventListener('click', () => {
     playSound('click');
-    el('nameInput').value = state.name;
-    el('profileModal').classList.add('show');
-    el('nameInput').focus();
+    openProfileModal();
   });
 
-  el('closeProfileBtn').addEventListener('click', () => {
-    el('profileModal').classList.remove('show');
+  el('closeProfileBtn').addEventListener('click', closeProfileModal);
+
+  el('copyUidBtn').addEventListener('click', () => {
+    if (currentAuthUser) {
+      navigator.clipboard.writeText(currentAuthUser.uid).then(() => {
+        toast('📋 विद्यार्थी आयडी कॉपी झाला: ' + currentAuthUser.uid);
+      });
+    }
   });
 
-  el('saveNameBtn').addEventListener('click', () => {
-    state.name = el('nameInput').value.trim().slice(0, 24);
-    localStorage.setItem('vv_name', state.name);
-    el('profileModal').classList.remove('show');
-    refreshStats();
-    toast(state.name ? 'स्वागत आहे, ' + state.name + '!' : 'चला, शब्दयात्रा सुरू करूया!');
+  el('profileSendVerifyBtn').addEventListener('click', async () => {
+    if (currentAuthUser) {
+      await currentAuthUser.sendEmailVerification();
+      toast('📧 पडताळणी लिंक आपल्या ईमेलवर पुन्हा पाठवली!');
+    }
   });
 
-  el('nameInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') el('saveNameBtn').click();
-  });
+  el('studentProfileForm').addEventListener('submit', handleSaveProfile);
+  el('changeEmailBtn').addEventListener('click', handleChangeEmail);
+
+  el('logoutTopBtn').addEventListener('click', handleStudentLogout);
+  el('logoutFromProfileBtn').addEventListener('click', handleStudentLogout);
+
+  el('linkGoogleBtn').addEventListener('click', handleLinkGoogle);
+  el('linkEmailBtn').addEventListener('click', handleLinkEmailPassword);
 
   // Audio Toggle
   el('audioToggleBtn').addEventListener('click', () => {
@@ -1818,6 +2687,9 @@ function initEventListeners() {
   });
 
   el('payNowBtn').addEventListener('click', handlePayNow);
+  if (el('activateAccessBtn')) {
+    el('activateAccessBtn').addEventListener('click', handleActivateAccess);
+  }
 
   // UPI Direct Modal Actions
   el('closeUpiBtn').addEventListener('click', () => {
@@ -1929,9 +2801,6 @@ applyBrandingToDOM();
 initEventListeners();
 handleRoute();
 renderMap();
-if (!state.name && window.location.hash !== '#admin') {
-  setTimeout(() => el('profileModal').classList.add('show'), 700);
-}
 </script>
 </body>
 </html>

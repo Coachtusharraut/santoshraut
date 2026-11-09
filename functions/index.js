@@ -23,7 +23,22 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'placeholder_secr
 
 // 2. Initialize Firebase Admin SDK
 if (!admin.apps.length) {
-  admin.initializeApp();
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    try {
+      const sa = typeof process.env.FIREBASE_SERVICE_ACCOUNT_KEY === 'string'
+        ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+        : process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+      admin.initializeApp({
+        credential: admin.credential.cert(sa)
+      });
+      console.log('Firebase Admin initialized with external Service Account Key');
+    } catch (e) {
+      console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY, falling back to default:', e.message);
+      admin.initializeApp();
+    }
+  } else {
+    admin.initializeApp();
+  }
 }
 
 // 3. Load secure units data (all 21 units with questions & lesson content)
@@ -99,6 +114,36 @@ router.get('/health', (req, res) => {
 router.post('/create-order', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
+
+    // Reject anonymous accounts for orders/payments (Requirement A.5 & D.1)
+    if (req.user.firebase && req.user.firebase.sign_in_provider === 'anonymous') {
+      return res.status(403).json({
+        error: 'ANONYMOUS_NOT_ALLOWED',
+        message: 'पेमेंट करण्यासाठी कृपया आपले कायमस्वरूपी विद्यार्थी खाते तयार करा किंवा लॉगिन करा.'
+      });
+    }
+
+    // Check if student already has an active valid membership (Requirement D.8)
+    const userSnap = await admin.firestore().collection('users').doc(uid).get();
+    if (userSnap.exists) {
+      const userData = userSnap.data();
+      if (userData.isPaid === true) {
+        let isActive = true;
+        if (userData.expiresAt) {
+          const expMs = userData.expiresAt.toMillis ? userData.expiresAt.toMillis() : new Date(userData.expiresAt).getTime();
+          if (expMs <= Date.now()) {
+            isActive = false;
+          }
+        }
+        if (isActive) {
+          return res.status(400).json({
+            error: 'MEMBERSHIP_ALREADY_ACTIVE',
+            message: 'आपले १ वर्षाचे सदस्यत्व आधीपासूनच सक्रिय आहे. पुन्हा पेमेंट करण्याची आवश्यकता नाही.'
+          });
+        }
+      }
+    }
+
     const amountInPaise = 2100; // Strictly ₹21.00 = 2100 paise
     const currency = 'INR';
     const receipt = `rcpt_${uid.substring(0, 8)}_${Date.now()}`;
@@ -222,36 +267,40 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
 
     // D. If connected with real test credentials, verify status directly from Razorpay API
     if (RAZORPAY_KEY_ID !== 'rzp_test_placeholder' && !RAZORPAY_KEY_ID.includes('placeholder')) {
-      try {
-        const rzp = getRazorpayInstance();
-        const payment = await rzp.payments.fetch(razorpay_payment_id);
+      const isSimulatedTestPayment = process.env.FUNCTIONS_EMULATOR === 'true' && razorpay_payment_id.startsWith('pay_simulated_');
+      if (!isSimulatedTestPayment) {
+        try {
+          const rzp = getRazorpayInstance();
+          const payment = await rzp.payments.fetch(razorpay_payment_id);
 
-        if (!payment || payment.order_id !== razorpay_order_id) {
+          if (!payment || payment.order_id !== razorpay_order_id) {
+            return res.status(400).json({
+              error: 'PAYMENT_ORDER_MISMATCH',
+              message: 'Payment record does not match the order ID'
+            });
+          }
+
+          if (payment.amount !== 2100 || payment.currency !== 'INR') {
+            return res.status(400).json({
+              error: 'WRONG_PAYMENT_AMOUNT',
+              message: `Payment amount is ${payment.amount}, expected 2100 paise`
+            });
+          }
+
+          // Requirement D.3: Grant membership only after server-side payment verification confirms captured status
+          if (payment.status !== 'captured') {
+            return res.status(400).json({
+              error: 'PAYMENT_NOT_CAPTURED',
+              message: `Payment status is ${payment.status}, expected captured`
+            });
+          }
+        } catch (rzpErr) {
+          console.error('Razorpay API verification error:', rzpErr);
           return res.status(400).json({
-            error: 'PAYMENT_ORDER_MISMATCH',
-            message: 'Payment record does not match the order ID'
+            error: 'RAZORPAY_API_ERROR',
+            message: rzpErr.message || 'Failed to verify payment with Razorpay'
           });
         }
-
-        if (payment.amount !== 2100 || payment.currency !== 'INR') {
-          return res.status(400).json({
-            error: 'WRONG_PAYMENT_AMOUNT',
-            message: `Payment amount is ${payment.amount}, expected 2100 paise`
-          });
-        }
-
-        if (payment.status !== 'captured' && payment.status !== 'authorized') {
-          return res.status(400).json({
-            error: 'PAYMENT_NOT_CAPTURED',
-            message: `Payment status is ${payment.status}, expected captured or authorized`
-          });
-        }
-      } catch (rzpErr) {
-        console.error('Razorpay API verification error:', rzpErr);
-        return res.status(400).json({
-          error: 'RAZORPAY_API_ERROR',
-          message: rzpErr.message || 'Failed to verify payment with Razorpay'
-        });
       }
     }
 
@@ -328,11 +377,19 @@ router.post('/get-lesson', optionalAuth, async (req, res) => {
       });
     }
 
-    // Lessons 3-20 require valid authentication and paid membership in Firestore
+    // Lessons 3-20 require valid permanent student authentication and paid membership in Firestore
     if (!req.user || !req.user.uid) {
       return res.status(401).json({
         error: 'AUTH_REQUIRED',
         message: 'या धड्यासाठी लॉगिन किंवा ओळख पडताळणी आवश्यक आहे.'
+      });
+    }
+
+    // Do not permit anonymous accounts to access paid lessons (Requirement A.5)
+    if (req.user.firebase && req.user.firebase.sign_in_provider === 'anonymous') {
+      return res.status(403).json({
+        error: 'ANONYMOUS_NOT_ALLOWED',
+        message: 'हा धडा उघडण्यासाठी कृपया आपले कायमस्वरूपी विद्यार्थी खाते तयार करा किंवा लॉगिन करा.'
       });
     }
 
@@ -394,11 +451,21 @@ router.get('/user-status', requireAuth, async (req, res) => {
     }
 
     const data = userSnap.data();
+    let isPaid = !!data.isPaid;
+    if (isPaid && data.expiresAt) {
+      const expMs = data.expiresAt.toMillis ? data.expiresAt.toMillis() : new Date(data.expiresAt).getTime();
+      if (expMs <= Date.now()) {
+        isPaid = false;
+      }
+    }
+
     return res.json({
       uid: uid,
-      isPaid: !!data.isPaid,
+      isPaid: isPaid,
       expiresAt: data.expiresAt ? (data.expiresAt.toMillis ? data.expiresAt.toMillis() : data.expiresAt) : null,
-      plan: data.plan || null
+      plan: data.plan || null,
+      planName: data.planName || null,
+      paymentId: data.paymentId || null
     });
   } catch (err) {
     console.error('Error getting user status:', err);
@@ -410,5 +477,15 @@ router.get('/user-status', requireAuth, async (req, res) => {
 app.use('/api', router);
 app.use('/', router);
 
-// Export Cloud Function
+// Export Cloud Function for Firebase
 exports.api = functions.https.onRequest(app);
+
+// Export Express app for Vercel / Render / Node standalone server
+module.exports = app;
+
+if (require.main === module || (!process.env.FUNCTION_TARGET && process.env.PORT)) {
+  const PORT = process.env.PORT || 8080;
+  app.listen(PORT, () => {
+    console.log(`Backend API listening on port ${PORT}`);
+  });
+}
