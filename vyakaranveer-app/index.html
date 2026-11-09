@@ -3338,6 +3338,7 @@ auth.onAuthStateChanged(async (user) => {
       console.log('👤 Student Authenticated:', user.uid, user.email);
       updateAuthUI(true);
       listenToStudentDoc(user.uid);
+      setTimeout(checkAutoReturnFromUpi, 800);
     }
   } else {
     currentAuthUser = null;
@@ -4036,13 +4037,15 @@ function openDirectUpi(upiId, appName) {
 
   const upiUrl = 'upi://pay?pa=' + encodeURIComponent(targetUpiId) + '&pn=' + encodeURIComponent(payee) + '&am=' + amount + '&cu=INR&tn=' + encodeURIComponent(note);
 
-  // Store pending payment in sessionStorage for automatic return detection
-  sessionStorage.setItem('vv_pending_upi', JSON.stringify({
+  // Store pending payment in both localStorage & sessionStorage for resilient return detection
+  const pendingPayload = JSON.stringify({
     startedAt: Date.now(),
     uid: currentAuthUser.uid,
     name: name,
     phone: phone
-  }));
+  });
+  localStorage.setItem('vv_pending_upi', pendingPayload);
+  sessionStorage.setItem('vv_pending_upi', pendingPayload);
 
   // Show live status indicator in paywall
   const statusAlert = el('upiStatusAlert');
@@ -4053,8 +4056,20 @@ function openDirectUpi(upiId, appName) {
     payBtn.innerHTML = '<span class="upi-spinner"></span><span class="upi-btn-content"><span class="upi-main-text">UPI ॲप सुरू केले आहे...</span><span class="upi-sub-text">पेमेंट पूर्ण करून परत या, ॲक्सेस आपोआप सुरू होईल</span></span>';
   }
 
-  // Trigger native UPI application on mobile
-  window.location.href = upiUrl;
+  // Trigger native UPI application safely via anchor click
+  try {
+    const upiLink = document.createElement('a');
+    upiLink.href = upiUrl;
+    upiLink.style.display = 'none';
+    document.body.appendChild(upiLink);
+    upiLink.click();
+    setTimeout(() => {
+      if (document.body.contains(upiLink)) document.body.removeChild(upiLink);
+    }, 1000);
+  } catch (intentErr) {
+    console.warn('UPI intent launch fallback:', intentErr);
+    window.location.href = upiUrl;
+  }
 
   toast('📲 UPI ॲप उघडले आहे. ₹१ भरून येथे परत या, ॲक्सेस आपोआप सक्रिय होईल!');
 }
@@ -4062,7 +4077,7 @@ function openDirectUpi(upiId, appName) {
 let autoVerificationInProgress = false;
 async function checkAutoReturnFromUpi() {
   if (autoVerificationInProgress) return;
-  const pendingRaw = sessionStorage.getItem('vv_pending_upi');
+  const pendingRaw = localStorage.getItem('vv_pending_upi') || sessionStorage.getItem('vv_pending_upi');
   if (!pendingRaw) return;
 
   try {
@@ -4073,6 +4088,7 @@ async function checkAutoReturnFromUpi() {
     const elapsed = Date.now() - (pending.startedAt || 0);
     if (elapsed < 2500) return;
 
+    localStorage.removeItem('vv_pending_upi');
     sessionStorage.removeItem('vv_pending_upi');
     autoVerificationInProgress = true;
 
