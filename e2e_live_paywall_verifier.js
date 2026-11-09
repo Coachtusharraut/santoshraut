@@ -106,9 +106,10 @@ async function runLivePaywallVerification() {
   console.log('✅ [Check 3] Paywall modal displays ₹1 pricing and Unified Direct 1-Tap UPI CTA');
 
   // ---------------------------------------------------------
-  // PHASE 4: Instant 1-Click Activation & 1-Year Entitlement
+  // PHASE 4: 12-Digit UTR Payment Verification & 1-Year Entitlement
   // ---------------------------------------------------------
-  console.log('\n--- PHASE 4: Instant 1-Click Activation & 1-Year Entitlement ---');
+  console.log('\n--- PHASE 4: 12-Digit UTR Payment Verification & 1-Year Entitlement ---');
+  await page.type('#verifyPaymentIdInput', '428192849201');
   await page.click('#activateAccessBtn');
 
   // Wait for membership badge

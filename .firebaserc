@@ -1,6 +1,15 @@
 {
   "projects": {
     "default": "marathi-vyakaram"
-  }
+  },
+  "targets": {
+    "marathi-vyakaram": {
+      "hosting": {
+        "app": [
+          "santoshraut"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
-

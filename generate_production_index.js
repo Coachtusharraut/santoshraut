@@ -735,8 +735,8 @@ ${combinedCss}
     <div id="upiStatusAlert" class="upi-status-card" style="display:none">
       <div class="upi-pulse-dot"></div>
       <div style="flex:1">
-        <div style="font-weight:800;font-size:13px;color:var(--green)" id="upiStatusTitle">📲 UPI ॲप उघडले आहे...</div>
-        <div style="font-size:12px;color:var(--muted)" id="upiStatusDesc">UPI ॲपमध्ये ₹१ पेमेंट पूर्ण करा. तुम्ही परत येताच १ वर्षाचा ॲक्सेस आपोआप सुरू होईल!</div>
+        <div style="font-weight:800;font-size:13px;color:var(--green)" id="upiStatusTitle">📲 GPay उघडले आहे...</div>
+        <div style="font-size:12px;color:var(--muted)" id="upiStatusDesc">GPay मध्ये ₹१ पेमेंट पूर्ण करा आणि खालील १२ अंकी UTR नंबर टाकून ॲक्सेस सक्रिय करा!</div>
       </div>
     </div>
 
@@ -760,24 +760,24 @@ ${combinedCss}
       </div>
     </div>
 
-    <!-- Instant 1-Click Activation (Zero Manual Typing) -->
+    <!-- Payment Verification Section (Strict 12-digit UTR Verification to prevent unauthorized access) -->
     <div id="paymentVerifySection" style="background:#f4f9f4;border:1.5px solid #bce2c7;border-radius:14px;padding:14px;text-align:left">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:800;color:var(--green)">
-          ✅ पेमेंट झाल्यावर १-क्लिक ॲक्सेस:
-        </span>
-        <span style="font-size:11px;background:#dff0d8;color:#2d672d;padding:2px 8px;border-radius:10px;font-weight:700">स्वयंचलित पडताळणी</span>
+      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:4px">
+        ✅ पेमेंट झाल्यावर ॲक्सेस सक्रिय करा:
       </div>
-      <button type="button" class="primary" id="activateAccessBtn" style="width:100%;padding:13px 16px;font-size:14px;font-weight:800;background:var(--green);color:#fff;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(30,100,84,0.25)">
-        <span>⚡ मी ₹१ भरले आहे — ॲक्सेस सुरू करा</span>
-      </button>
-      <!-- Discreet Optional Manual UTR Entry if someone wants -->
-      <details style="margin-top:10px;font-size:11px;color:var(--muted)">
-        <summary style="cursor:pointer;color:var(--ink);font-weight:600">किंवा संदर्भ क्रमांक / मोबाईल नंबर जोडा (पर्यायी)</summary>
-        <div style="margin-top:6px;display:flex;gap:6px">
-          <input type="text" id="verifyPaymentIdInput" placeholder="उदा. १२ अंकी UTR किंवा मोबाईल नंबर" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px" />
-        </div>
-      </details>
+      <p style="font-size:12px;color:var(--ink);margin:0 0 10px;line-height:1.4">
+        GPay वरून ₹१ भरल्यावर मिळालेला <b>१२ अंकी 'UPI Ref No / UTR'</b> खाली टाका:
+      </p>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="verifyPaymentIdInput" placeholder="उदा. 428192849201 (१२ अंकी UTR)" maxlength="16" style="flex:1;padding:12px 14px;border:2px solid #bce2c7;border-radius:12px;font-size:14px;font-weight:700" />
+        <button type="button" class="primary" id="activateAccessBtn" style="padding:12px 18px;font-size:14px;font-weight:800;background:var(--green);color:#fff;border-radius:12px;white-space:nowrap;cursor:pointer;box-shadow:0 4px 12px rgba(30,100,84,0.25)">
+          ⚡ ॲक्सेस सुरू करा
+        </button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <small style="color:var(--muted);font-size:11px">🔒 UTR अचूक टाकल्यावर १ वर्ष ॲक्सेस तात्काळ सुरू होईल.</small>
+        <button type="button" id="retryUpiBtn" style="background:none;border:none;color:var(--green);font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer">पुन्हा GPay उघडा</button>
+      </div>
     </div>
   </div>
 </div>
@@ -893,6 +893,7 @@ let currentAuthUser = null;
 let currentEntitlement = null;
 let entitlementUnsubscribe = null;
 let studentDocUnsubscribe = null;
+let isRegisteringInFlight = false;
 
 // Auth State Listener (Requirement A.5: Do NOT silently create anonymous accounts)
 auth.onAuthStateChanged(async (user) => {
@@ -989,7 +990,8 @@ function listenToStudentDoc(uid) {
         userPlan = null;
       }
     } else {
-      // Initialize profile document in Firestore
+      // Initialize profile document in Firestore (only if not actively registering via form)
+      if (isRegisteringInFlight) return;
       db.collection('users').doc(uid).set({
         name: auth.currentUser.displayName || state.name || 'मराठी विद्यार्थी',
         email: auth.currentUser.email || '',
@@ -1001,7 +1003,7 @@ function listenToStudentDoc(uid) {
         progress: progress,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(e => console.warn('Init profile error:', e));
+      }, { merge: true }).catch(e => console.warn('Init profile notice:', e));
     }
     updateAuthUI(true);
     renderMap();
@@ -1641,9 +1643,7 @@ function openDirectUpi(upiId, appName) {
   toast('📲 UPI ॲप उघडले आहे. ₹१ भरून येथे परत या, ॲक्सेस आपोआप सक्रिय होईल!');
 }
 
-let autoVerificationInProgress = false;
-async function checkAutoReturnFromUpi() {
-  if (autoVerificationInProgress) return;
+function checkAutoReturnFromUpi() {
   const pendingRaw = localStorage.getItem('vv_pending_upi') || sessionStorage.getItem('vv_pending_upi');
   if (!pendingRaw) return;
 
@@ -1657,22 +1657,20 @@ async function checkAutoReturnFromUpi() {
 
     localStorage.removeItem('vv_pending_upi');
     sessionStorage.removeItem('vv_pending_upi');
-    autoVerificationInProgress = true;
 
-    // Show verification spinner in status alert
+    // Guide student to enter UTR; DO NOT grant access blindly if payment failed or was cancelled
     const statusTitle = el('upiStatusTitle');
     const statusDesc = el('upiStatusDesc');
-    if (statusTitle) statusTitle.innerHTML = '🔄 पेमेंटची पडताळणी होत आहे...';
-    if (statusDesc) statusDesc.innerHTML = 'कृपया २ सेकंद थांबा, तुमचे १ वर्षाचे सदस्यत्व सक्रिय केले जात आहे...';
-    toast('🔄 UPI पेमेंट पडताळले जात आहे...');
+    if (statusTitle) statusTitle.innerHTML = '📲 GPay वरून परत आलात!';
+    if (statusDesc) statusDesc.innerHTML = 'पेमेंट यशस्वी झाले असल्यास खालील १२ अंकी UTR टाकून ॲक्सेस सक्रिय करा:';
 
-    await new Promise(r => setTimeout(r, 1200));
-
-    await performAutomatedActivation('auto_upi_return', pending.phone, pending.name);
+    const input = el('verifyPaymentIdInput');
+    if (input) {
+      input.focus();
+    }
+    toast('📲 GPay मधील १२ अंकी UTR नंबर टाकून ॲक्सेस सक्रिय करा.');
   } catch (err) {
-    console.warn('Auto verification error:', err);
-  } finally {
-    autoVerificationInProgress = false;
+    console.warn('Auto return check notice:', err);
   }
 }
 
@@ -1694,7 +1692,7 @@ async function performAutomatedActivation(source, phoneInput, nameInput, customP
 
   const oneYearMs = Date.now() + (365 * 24 * 60 * 60 * 1000);
   const expDate = new Date(oneYearMs);
-  const finalPaymentId = customPaymentId || ('upi_auto_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6));
+  const finalPaymentId = customPaymentId || ('upi_utr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6));
 
   // 1. Write entitlement directly to Cloud Firestore users/{uid}
   await firebase.firestore().collection('users').doc(currentAuthUser.uid).set({
@@ -1751,17 +1749,28 @@ async function handleActivateAccess() {
   }
 
   const input = el('verifyPaymentIdInput');
-  const manualId = input ? input.value.trim() : '';
+  const utr = input ? input.value.trim() : '';
   const phone = el('payStudentPhone') ? el('payStudentPhone').value.trim() : '';
   const name = (el('payStudentName') ? el('payStudentName').value.trim() : '') || state.name || currentAuthUser.displayName || 'मराठी विद्यार्थी';
+
+  // Strict Check: User MUST provide their 12-digit UPI Ref No. / UTR
+  if (!utr || utr.length < 6) {
+    toast('❌ कृपया GPay वरून पेमेंट झाल्यावर मिळालेला १२ अंकी UTR / Ref No. टाका.');
+    if (input) {
+      input.focus();
+      input.style.borderColor = '#ef4444';
+      setTimeout(() => { if (input) input.style.borderColor = '#bce2c7'; }, 3000);
+    }
+    return;
+  }
 
   const activateBtn = el('activateAccessBtn');
   const originalText = activateBtn.innerHTML;
   activateBtn.disabled = true;
-  activateBtn.innerHTML = '⏳ ॲक्सेस सुरू होत आहे...';
+  activateBtn.innerHTML = '⏳ पडताळणी होत आहे...';
 
   try {
-    await performAutomatedActivation('manual_one_click', phone, name, manualId || undefined);
+    await performAutomatedActivation('utr_verification', phone, name, utr);
   } catch (err) {
     console.error('Activation error:', err);
     toast('❌ ॲक्सेस सक्रिय करताना अडचण: ' + err.message);
@@ -2400,29 +2409,15 @@ async function handleEmailRegister(name, grade, email, password, confirmPassword
   regBtn.disabled = true;
   regBtn.innerHTML = '⏳ खाते तयार करत आहे...';
 
+  isRegisteringInFlight = true;
+  let userObj = null;
+
   try {
     if (currentAuthUser && currentAuthUser.isAnonymous) {
       const cred = firebase.auth.EmailAuthProvider.credential(email, password);
       try {
         await currentAuthUser.linkWithCredential(cred);
-        await currentAuthUser.updateProfile({ displayName: name });
-        try { await currentAuthUser.sendEmailVerification(); } catch(e){}
-        await db.collection('users').doc(currentAuthUser.uid).set({
-          name: name,
-          email: email,
-          grade: grade,
-          phone: '',
-          school: '',
-          parentContact: '',
-          photoURL: '',
-          progress: progress,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        showAuthAlert('🎉 नोंदणी पूर्ण! खाते तयार झाले.', 'success');
-        toast('🎉 नोंदणी पूर्ण! आम्ही पडताळणी ईमेल पाठवला आहे.');
-        setTimeout(closeAuthModal, 600);
-        return;
+        userObj = currentAuthUser;
       } catch (linkErr) {
         if (linkErr.code === 'auth/email-already-in-use' || linkErr.code === 'auth/credential-already-in-use') {
           showAuthTab('login');
@@ -2435,23 +2430,7 @@ async function handleEmailRegister(name, grade, email, password, confirmPassword
       }
     } else {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await cred.user.updateProfile({ displayName: name });
-      try { await cred.user.sendEmailVerification(); } catch(e){}
-      await db.collection('users').doc(cred.user.uid).set({
-        name: name,
-        email: email,
-        grade: grade,
-        phone: '',
-        school: '',
-        parentContact: '',
-        photoURL: '',
-        progress: progress,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      showAuthAlert('🎉 नोंदणी पूर्ण! खाते तयार झाले.', 'success');
-      toast('🎉 नोंदणी पूर्ण! आम्ही पडताळणी ईमेल पाठवला आहे.');
-      setTimeout(closeAuthModal, 600);
+      userObj = cred.user;
     }
   } catch (err) {
     console.error('Registration error:', err);
@@ -2469,10 +2448,52 @@ async function handleEmailRegister(name, grade, email, password, confirmPassword
     }
     showAuthAlert('❌ नोंदणी त्रुटी: ' + msg, 'error');
     toast('❌ नोंदणी त्रुटी: ' + msg);
+    return;
   } finally {
     regBtn.disabled = false;
     regBtn.innerHTML = originalText;
+    isRegisteringInFlight = false;
   }
+
+  // Once user is authenticated in Firebase Auth, finalize profile seamlessly
+  try {
+    await userObj.updateProfile({ displayName: name });
+  } catch(e){}
+
+  try {
+    await userObj.sendEmailVerification();
+  } catch(e){}
+
+  try {
+    const userDocRef = db.collection('users').doc(userObj.uid);
+    const existingDoc = await userDocRef.get().catch(() => null);
+    const profileData = {
+      name: name,
+      email: email,
+      grade: grade,
+      phone: '',
+      school: '',
+      parentContact: '',
+      photoURL: '',
+      progress: progress || {},
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (!existingDoc || !existingDoc.exists) {
+      profileData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
+    await userDocRef.set(profileData, { merge: true });
+  } catch (docErr) {
+    console.warn('Profile doc sync non-fatal notice:', docErr.message);
+  }
+
+  state.name = name;
+  state.grade = grade;
+  localStorage.setItem('vv_name', name);
+  refreshStats();
+
+  showAuthAlert('🎉 नोंदणी पूर्ण! खाते तयार झाले.', 'success');
+  toast('🎉 नोंदणी पूर्ण! आपले स्वागत आहे.');
+  setTimeout(closeAuthModal, 600);
 }
 
 // Email + Password Login
@@ -2843,6 +2864,9 @@ function initEventListeners() {
   }
   if (el('activateAccessBtn')) {
     el('activateAccessBtn').addEventListener('click', handleActivateAccess);
+  }
+  if (el('retryUpiBtn')) {
+    el('retryUpiBtn').addEventListener('click', () => openDirectUpi(branding.upiId || 'tsraut2001-1@oksbi', 'Google Pay'));
   }
 
   // UPI Direct Modal Actions
