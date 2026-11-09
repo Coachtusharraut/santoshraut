@@ -145,12 +145,23 @@
   .paywall-form{grid-template-columns:1fr}
 }
 
+
+/* Production-preview release polish */
+.release-notice{max-width:1180px;margin:14px auto 0;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;border:1px solid #e8d8b7;border-radius:16px;background:linear-gradient(110deg,#fff8e8,#fffdf7);color:#604b2b;font:500 13px/1.55 'Noto Sans Devanagari','Baloo 2',sans-serif;box-shadow:0 5px 18px rgba(31,66,56,.045)}
+.release-notice strong{font-weight:800;color:#4c3b20}.release-notice-icon{font-size:18px;line-height:1.3;flex:0 0 auto}
+@media(max-width:560px){.release-notice{margin:10px 12px 0;padding:10px 12px;font-size:12px;border-radius:13px}.release-notice-icon{font-size:16px}}
+button:disabled{opacity:.55;cursor:not-allowed;transform:none!important}
+
 </style>
 </head>
 <body>
 <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
 
 <!-- SCREEN 1: Student Home Screen -->
+<div class="release-notice" role="status">
+  <span class="release-notice-icon" aria-hidden="true">🛠️</span>
+  <div><strong>पूर्वावलोकन आवृत्ती</strong><span> धडे व सराव उपलब्ध आहेत. ऑनलाइन पेमेंट आणि शिक्षक लॉगिन सुरक्षित क्लाउड सेवा जोडल्यावर सुरू होतील.</span></div>
+</div>
 <div class="app">
   <main id="homeScreen" class="screen active">
     <header class="topbar">
@@ -360,7 +371,7 @@
           <div class="brandmark" style="width:40px;height:40px;font-size:22px">⚙️</div>
           <div>
             <strong style="font-size:16px">संतोष राऊत — मुख्य नियंत्रण कक्ष (Admin Master Console)</strong>
-            <div style="font-size:11px;color:#d9ef8a">● थेट उत्पादन प्रणाली कार्यरत (Production Live)</div>
+            <div style="font-size:11px;color:#d9ef8a">● पूर्वावलोकन आवृत्ती • सुरक्षित सेवा जोडणी प्रलंबित</div>
           </div>
         </div>
         <div class="admin-topbar-actions">
@@ -2784,7 +2795,7 @@ const DEFAULT_BRANDING = {
   freeLessonsCount: 3,
   razorpayKey: '',
   upiId: 'santoshraut@upi',
-  adminPin: '2121'
+  adminPin: ''
 };
 
 // Application State
@@ -3279,49 +3290,10 @@ function openPaywallModal(unitIdx) {
 }
 
 function handlePayNow() {
-  const name = el('payStudentName').value.trim() || state.name || 'विद्यार्थी';
-  const phone = el('payStudentPhone').value.trim();
-
-  if (name && !state.name) {
-    state.name = name;
-    localStorage.setItem('vv_name', name);
-    refreshStats();
-  }
-
-  // If Merchant has configured live Razorpay Key
-  if (branding.razorpayKey && window.Razorpay) {
-    const options = {
-      key: branding.razorpayKey,
-      amount: branding.fee * 100, // paise (₹21 = 2100)
-      currency: 'INR',
-      name: branding.appName,
-      description: '१ वर्ष संपूर्ण ॲक्सेस — ' + branding.subTitle,
-      image: branding.authorPhoto || 'assets/santosh-raut.jpg',
-      prefill: {
-        name: name,
-        contact: phone
-      },
-      theme: {
-        color: branding.primaryColor || '#1e6454'
-      },
-      handler: function (response) {
-        activateSubscription(name, phone, response.razorpay_payment_id);
-      }
-    };
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-      return;
-    } catch(e) {
-      console.warn('Razorpay checkout failed, opening UPI fallback', e);
-    }
-  }
-
-  // Fallback: If no Razorpay Key configured yet, show Santosh Raut's UPI QR modal
-  el('paywallModal').classList.remove('show');
-  openUpiModal(name, phone);
+  // Client-side checkout callbacks cannot verify payment authenticity.
+  // Keep purchases disabled until a trusted server endpoint verifies Razorpay signatures.
+  toast('ऑनलाइन पेमेंट लवकरच सुरू होईल. सुरक्षित पेमेंट पडताळणी अद्याप जोडलेली नाही.');
 }
-
 function openUpiModal(name, phone) {
   el('upiIdText').textContent = branding.upiId || 'santoshraut@upi';
   el('upiModal').classList.add('show');
@@ -3371,19 +3343,11 @@ function recordStudent(name, phone, isPaid, expiresAt) {
 
 // Independent Admin Portal Logic
 function handleAdminLogin() {
-  const entered = el('adminPasswordInput').value.trim();
-  const correct = branding.adminPin || '2121';
-  if (entered === correct) {
-    isAdminAuthenticated = true;
-    el('adminPasswordInput').value = '';
-    window.location.hash = '#admin';
-    showScreen('admin-dash');
-    populateAdminConsole();
-    toast('✅ ॲडमिन नियंत्रण कक्षात स्वागत आहे!');
-  } else {
-    toast('❌ चुकीचा पासवर्ड! कृपया पुन्हा प्रयत्न करा.');
-    el('adminPasswordInput').value = '';
-  }
+  // The current app has no trusted server-side authentication.
+  // Never grant administrator access using a browser-stored PIN.
+  isAdminAuthenticated = false;
+  el('adminPasswordInput').value = '';
+  toast('ॲडमिन पोर्टल तात्पुरते बंद आहे. सुरक्षित Firebase Authentication जोडल्यावर सुरू होईल.');
 }
 
 function populateAdminConsole() {
@@ -3818,16 +3782,7 @@ function initEventListeners() {
   });
 
   el('verifyUtrBtn').addEventListener('click', () => {
-    const utr = el('utrInput').value.trim();
-    if (!utr || utr.length < 6) {
-      toast('कृपया अचूक १२ अंकी UTR किंवा संदर्भ क्रमांक टाका.');
-      return;
-    }
-    const name = el('payStudentName').value.trim() || state.name || 'विद्यार्थी';
-    const phone = el('payStudentPhone').value.trim();
-    recordStudent(name, phone, false, null);
-    el('upiModal').classList.remove('show');
-    toast('✅ संदर्भ क्रमांक नोंदवला गेला आहे. शिक्षक पडताळणीनंतर ॲक्सेस सुरू होईल.');
+    toast('UPI संदर्भ क्रमांकाची सुरक्षित सर्व्हर पडताळणी अद्याप उपलब्ध नाही. कृपया पेमेंट करू नका.');
   });
 
   // Admin Navigation Links
